@@ -1,0 +1,8 @@
+{% comment %}
+expects: filters — list of {label, checked}. Inert display of the legacy
+per-tab filter checkboxes (e.g. Current Year / All Years / Completed) until
+the real firm-wide queries exist.
+{% endcomment %}
+{% for f in filters %}
+<div class="chk"><input type="checkbox" {% if f.checked %}checked{% endif %} disabled> {{ f.label }}</div>
+{% endfor %}

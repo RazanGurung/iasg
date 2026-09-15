@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Sign in — IAS Group Inc{% endblock %}
+{% block identity %}
+  <h1>IAS Group Inc</h1>
+  <span class="spacer"></span>
+{% endblock %}
+{% block extra_head %}
+<style>
+.login-wrap{flex:1;display:flex;align-items:center;justify-content:center}
+.login-card{width:300px;padding:28px 26px;background:var(--surface);
+  border:1px solid var(--line-firm);border-radius:2px;
+  box-shadow:0 1px 3px rgba(20,30,60,.08)}
+.login-card h2{font-size:15px;font-weight:600;text-align:center;margin-bottom:2px}
+.login-card .sub{text-align:center;color:var(--muted);font-size:var(--fs-sm);
+  padding:0 0 20px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.login-card .field-row{grid-template-columns:88px 1fr;margin-bottom:10px}
+.login-card button.solid{width:100%;margin-top:6px}
+.login-card .error{color:var(--danger);font-size:var(--fs-sm);text-align:center;padding-top:10px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="login-card">
+    <h2>Sign in</h2>
+    <p class="sub">Integrity Accounting Solution Group Inc</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field-row"><label for="id_username">Username</label>{{ form.username }}</div>
+      <div class="field-row"><label for="id_password">Password</label>{{ form.password }}</div>
+      <button class="solid" type="submit">Sign in</button>
+      {% if form.errors %}<p class="error">Invalid username or password.</p>{% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

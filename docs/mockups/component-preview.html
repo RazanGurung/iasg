@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Component preview</title>
+<link rel="stylesheet" href="../../static/css/app.css">
+<style>
+/* catalog chrome only — not part of the shared component set */
+body{background:#eee;padding:24px;font-size:13px}
+.cat{max-width:1200px;margin:0 auto}
+.cat h1{font-size:18px;margin-bottom:4px}
+.cat > p{color:#555;margin-bottom:24px;font-size:12.5px}
+.swatch{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.swatch div{width:120px}
+.swatch i{display:block;height:36px;border:1px solid #0002}
+.swatch span{display:block;font-size:11px;color:#333;padding-top:3px}
+section.demo{background:#fff;border:1px solid #ccc;margin-bottom:28px}
+section.demo h2{font-size:13px;padding:10px 14px;border-bottom:1px solid #ddd;background:#f6f6f6}
+section.demo .body{padding:16px}
+.row{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.caption{font-size:11px;color:#666;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="cat">
+  <h1>IASG MIS — component preview</h1>
+  <p>Every shared component in <code>static/css/app.css</code> / <code>templates/partials/</code>, rendered once with
+     fabricated data. Palette sampled from the legacy Access screenshots — see docs/design.md.</p>
+
+  <section class="demo">
+    <h2>Tokens</h2>
+    <div class="body">
+      <div class="swatch">
+        <div><i style="background:#7a4f50"></i><span>--frame #7a4f50</span></div>
+        <div><i style="background:#d9d9d9"></i><span>--page #d9d9d9</span></div>
+        <div><i style="background:#ffffff"></i><span>--surface #ffffff</span></div>
+        <div><i style="background:#f1f1f1"></i><span>--disabled-bg #f1f1f1</span></div>
+        <div><i style="background:#b9b9b9"></i><span>--line #b9b9b9</span></div>
+        <div><i style="background:#8f8f8f"></i><span>--line-firm #8f8f8f</span></div>
+        <div><i style="background:#1a1a1a"></i><span>--ink / --select-bg</span></div>
+        <div><i style="background:#55606b"></i><span>--muted / --protected</span></div>
+        <div><i style="background:#2c5aa0"></i><span>--accent #2c5aa0</span></div>
+        <div><i style="background:#e8eff7"></i><span>--accent-bg</span></div>
+      </div>
+      <p class="caption">Type: 12.5px base / 11px small. Row &amp; field height: 24px.</p>
+    </div>
+  </section>
+
+  <section class="demo">
+    <h2>Identity bar</h2>
+    <div class="body">
+      <div class="identity" style="border:1px solid #ddd">
+        <h1>RIVERTON HARDWARE &amp; SUPPLY LLC</h1>
+        <span class="id">Client 402 &middot; S-Corp</span>
+        <span class="spacer"></span>
+        <span class="meta">Modified 14 Aug 2026 by rgurung</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo">
+    <h2>Field rows — view vs. edit</h2>
+    <div class="body row">
+      <div style="width:340px">
+        <p class="caption">Viewing (default) — boxed, readonly</p>
+        <div class="field-row"><label for="p1">Doing business as</label><input class="box" id="p1" value="Riverton Supply" readonly></div>
+        <div class="field-row"><label for="p2">County</label><input class="box" id="p2" value="Guilford" readonly></div>
+        <div class="field-row"><label for="p3">Withholding rate</label><input class="box computed" id="p3" value="1.20%" readonly tabindex="-1"></div>
+      </div>
+      <div class="editing" style="width:340px">
+        <p class="caption">Editing — live inputs, computed field stays locked</p>
+        <div class="field-row"><label for="p4">Doing business as</label><input class="box" id="p4" value="Riverton Supply"></div>
+        <div class="field-row"><label for="p5">County</label><input class="box" id="p5" value="Guilford"></div>
+        <div class="field-row"><label for="p6">Withholding rate</label><input class="box computed" id="p6" value="1.20%" readonly tabindex="-1"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo">
+    <h2>Tab strip</h2>
+    <div class="body">
+      <div class="tab-strip">
+        <button class="tab" role="tab" aria-selected="true">Notes</button>
+        <button class="tab" role="tab" aria-selected="false">Credentials</button>
+        <button class="tab" role="tab" aria-selected="false">Communications</button>
+        <button class="tab" role="tab" aria-selected="false">Sales Tax History</button>
+        <button class="tab" role="tab" aria-selected="false">Tasks</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo">
+    <h2>Data grid — selected row, computed column, empty state</h2>
+    <div class="body">
+      <table class="grid">
+        <thead><tr><th>Period</th><th>Filed</th><th class="num">Gross sales</th><th class="num">Tax due</th><th>Method</th></tr></thead>
+        <tbody>
+          <tr aria-selected="true"><td>2026 Q2</td><td>18 Jul 2026</td><td class="num">418,204.11</td><td class="num calc">26,519.43</td><td>Online</td></tr>
+          <tr><td>2026 Q1</td><td>17 Apr 2026</td><td class="num">377,915.62</td><td class="num calc">23,901.94</td><td>Online</td></tr>
+          <tr><td>2025 Q4</td><td>19 Jan 2026</td><td class="num">502,338.05</td><td class="num calc">31,807.97</td><td>Online</td></tr>
+        </tbody>
+      </table>
+      <p class="caption">Selected row: black background / white text (matches the legacy contacts-grid highlight, not the usual blue). Tax due is computed — grey, no border, skipped by Tab.</p>
+      <div style="height:12px"></div>
+      <table class="grid">
+        <thead><tr><th>Task</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="caption">Empty state renders below (via the partial's <code>{% empty %}</code> branch):</p>
+      <table class="grid">
+        <thead><tr><th>Task</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody><tr><td colspan="3" class="empty-state">Nothing here yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="demo">
+    <h2>Protected value — masked / revealed</h2>
+    <div class="body row">
+      <div>
+        <p class="caption">Masked (default state on load)</p>
+        <span class="protected"><span class="masked">•••-••-8127</span><span class="tag">reveal</span></span>
+      </div>
+      <div>
+        <p class="caption">Revealed (after click — server logs the reveal)</p>
+        <span class="protected open"><span class="masked">401-55-8127</span><span class="tag">viewed, logged</span></span>
+      </div>
+    </div>
+    <div class="body" style="padding-top:0">
+      <p class="caption">In real pages, <code>protected_value.html</code> never renders the real value — clicking "reveal" issues
+      an HTMX GET to a per-field endpoint that returns it and logs the access. This static preview fakes the "open" state
+      to show what it looks like.</p>
+    </div>
+  </section>
+
+  <section class="demo">
+    <h2>Buttons</h2>
+    <div class="body row">
+      <button>Add</button>
+      <button class="solid">Save changes</button>
+      <button disabled>Delete</button>
+      <button class="link">+ Add another contact</button>
+    </div>
+  </section>
+
+  <section class="demo">
+    <h2>Status bar</h2>
+    <div class="body" style="padding:0">
+      <div class="status-bar">
+        <span>Signed in as <span class="who">rgurung</span></span>
+        <span class="spacer"></span>
+        <span>/ to search &nbsp;&middot;&nbsp; &larr; &rarr; to change tab &nbsp;&middot;&nbsp; Ctrl+S to save</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

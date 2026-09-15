@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IASG_MIS — Client Console</title>
+<style>
+/* ============================================================
+   Density-first internal tool. No framework, no UI kit.
+   Sized for 1920x1080 with browser chrome (~980px viewport).
+   All data on this page is fabricated.
+   ============================================================ */
+
+:root{
+  --bg:            #e9ebee;
+  --surface:       #ffffff;
+  --surface-alt:   #f5f6f8;
+  --line:          #c4c9d0;
+  --line-soft:     #dde1e6;
+  --ink:           #13171c;
+  --ink-muted:     #5c6774;
+  --ink-faint:     #8a94a1;
+  --accent:        #1b4d7a;   /* focus, active state */
+  --accent-soft:   #e3edf6;
+  --guard:         #6b4c00;   /* protected identifiers */
+  --guard-soft:    #fdf6e3;
+  --dirty:         #a86400;   /* unsaved edit */
+  --stop:          #9d2419;
+
+  --row:      26px;
+  --field:    26px;
+  --gap:      6px;
+  --fs:       13px;
+  --fs-sm:    12px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:"Segoe UI",-apple-system,system-ui,sans-serif;
+  font-size:var(--fs);
+  color:var(--ink);
+  background:var(--bg);
+  line-height:1.3;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* numerals in identifier fields line up column-wise */
+input,.num{font-variant-numeric:tabular-nums}
+
+/* ---------- identity bar ---------- */
+.identity{
+  height:40px;
+  flex:none;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:0 12px;
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+}
+.identity h1{
+  font-size:16px;
+  font-weight:600;
+  letter-spacing:-0.1px;
+}
+.cid{
+  font-size:var(--fs-sm);
+  color:var(--ink-muted);
+  padding:2px 7px;
+  border:1px solid var(--line);
+  background:var(--surface-alt);
+}
+.chip{
+  font-size:var(--fs-sm);
+  padding:2px 8px;
+  border:1px solid var(--line);
+}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.identity .spacer{flex:1}
+
+/* ---------- header block ---------- */
+.header{
+  flex:none;
+  height:300px;
+  display:grid;
+  grid-template-columns:520px 470px 1fr;
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+}
+.panel{padding:8px 12px;border-right:1px solid var(--line-soft);overflow:hidden}
+.panel:last-child{border-right:0}
+
+.panel h2{
+  font-size:var(--fs-sm);
+  font-weight:600;
+  color:var(--ink-muted);
+  padding-bottom:5px;
+  margin-bottom:7px;
+  border-bottom:1px solid var(--line-soft);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.panel h2 .count{color:var(--ink-faint);font-weight:400}
+
+/* label/field pairs on a fixed grid so columns align down the panel */
+.fields{display:grid;grid-template-columns:auto 1fr;gap:var(--gap) 10px;align-items:center}
+.fields.split{grid-template-columns:auto 1fr 1fr}
+label{font-size:var(--fs-sm);color:var(--ink-muted);text-align:right;white-space:nowrap}
+
+input[type=text],select{
+  height:var(--field);
+  width:100%;
+  padding:0 5px;
+  font:inherit;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:0;
+}
+input:focus,select:focus{
+  outline:2px solid var(--accent);
+  outline-offset:-2px;
+  background:#fbfdff;
+}
+input[readonly]{background:var(--surface-alt);color:var(--ink-muted)}
+input.dirty{border-color:var(--dirty);background:#fffdf5}
+
+.inline{display:flex;gap:6px;align-items:center}
+.checks{display:flex;gap:14px;align-items:center;font-size:var(--fs-sm);color:var(--ink-muted);padding-top:2px}
+.checks label{text-align:left}
+
+/* ---------- protected identifiers ---------- */
+.guard{
+  margin-top:9px;
+  padding:7px 9px 8px;
+  background:var(--guard-soft);
+  border:1px solid #e4d5a8;
+}
+.guard h3{
+  font-size:var(--fs-sm);
+  font-weight:600;
+  color:var(--guard);
+  margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.guard .fields{gap:5px 10px}
+.masked{
+  height:var(--field);
+  display:flex;
+  align-items:center;
+  padding:0 5px;
+  background:var(--surface);
+  border:1px solid #e4d5a8;
+  color:var(--ink-muted);
+  cursor:pointer;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0.5px;
+}
+.masked:hover{border-color:var(--guard)}
+.masked:focus{outline:2px solid var(--guard);outline-offset:-2px}
+.masked.shown{color:var(--ink);background:#fff}
+.masked .hint{margin-left:auto;font-size:11px;color:var(--ink-faint);letter-spacing:0}
+.masked.shown .hint{color:var(--guard)}
+
+/* ---------- contacts ---------- */
+.contacts{display:flex;flex-direction:column;height:100%}
+.contacts .grid-wrap{flex:1;min-height:0;overflow:auto;border:1px solid var(--line)}
+
+/* ---------- grids ---------- */
+table{border-collapse:collapse;width:100%;font-size:var(--fs)}
+thead th{
+  position:sticky;top:0;
+  height:24px;
+  padding:0 7px;
+  text-align:left;
+  font-size:var(--fs-sm);
+  font-weight:600;
+  color:var(--ink-muted);
+  background:var(--surface-alt);
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+}
+tbody td{
+  height:var(--row);
+  padding:0 7px;
+  border-bottom:1px solid var(--line-soft);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+tbody tr:nth-child(even){background:var(--surface-alt)}
+tbody tr:hover{background:#eef4fa}
+tbody tr[aria-selected=true]{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+td.num{text-align:right}
+td.dim{color:var(--ink-muted)}
+
+/* ---------- search / nav ---------- */
+.searchbar{
+  height:38px;
+  flex:none;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:0 12px;
+  background:var(--surface-alt);
+  border-bottom:1px solid var(--line);
+}
+.searchbar input{width:300px;height:24px}
+.searchbar .sep{width:1px;height:20px;background:var(--line)}
+.navbtn{
+  height:24px;min-width:28px;
+  font:inherit;font-size:var(--fs-sm);
+  background:var(--surface);
+  border:1px solid var(--line);
+  cursor:pointer;
+}
+.navbtn:hover{background:var(--accent-soft);border-color:var(--accent)}
+.navbtn:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.navbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff;padding:0 10px}
+.navbtn.primary[disabled]{background:var(--surface-alt);border-color:var(--line);color:var(--ink-faint);cursor:default}
+.pos{font-size:var(--fs-sm);color:var(--ink-muted)}
+.searchbar .spacer{flex:1}
+
+/* ---------- tabs ---------- */
+.tabs{
+  height:36px;
+  flex:none;
+  display:flex;
+  align-items:flex-end;
+  gap:1px;
+  padding:0 10px;
+  background:var(--bg);
+  border-bottom:1px solid var(--line);
+}
+.tab{
+  height:27px;
+  padding:0 13px;
+  font:inherit;
+  font-size:var(--fs-sm);
+  color:var(--ink-muted);
+  background:var(--surface-alt);
+  border:1px solid var(--line);
+  border-bottom:0;
+  cursor:pointer;
+}
+.tab:hover{background:#fff;color:var(--ink)}
+.tab:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.tab[aria-selected=true]{
+  background:var(--surface);
+  color:var(--ink);
+  font-weight:600;
+  height:30px;
+  box-shadow:inset 0 2px 0 var(--accent);
+}
+
+/* ---------- tab panel ---------- */
+.panelwrap{flex:1;min-height:0;background:var(--surface);display:flex;flex-direction:column;padding:8px 12px 10px}
+.panelhead{flex:none;display:flex;align-items:center;gap:8px;padding-bottom:7px}
+.panelhead h2{font-size:var(--fs-sm);font-weight:600;color:var(--ink-muted)}
+.panelhead .spacer{flex:1}
+.grid-scroll{flex:1;min-height:0;overflow:auto;border:1px solid var(--line)}
+
+.empty{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);color:var(--ink-muted);font-size:var(--fs-sm);
+}
+
+/* ---------- status bar ---------- */
+.status{
+  height:30px;flex:none;
+  display:flex;align-items:center;gap:16px;
+  padding:0 12px;
+  font-size:var(--fs-sm);
+  color:var(--ink-muted);
+  background:var(--surface-alt);
+  border-top:1px solid var(--line);
+}
+.status .spacer{flex:1}
+.status b{font-weight:600;color:var(--ink)}
+kbd{
+  font:inherit;font-size:11px;
+  padding:1px 5px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  color:var(--ink-muted);
+}
+</style>
+</head>
+<body>
+
+<div class="identity">
+  <span class="cid">Client 402</span>
+  <h1>RIVERTON HARDWARE &amp; SUPPLY LLC</h1>
+  <span class="chip">S-Corp</span>
+  <span class="chip on">Active</span>
+  <span class="spacer"></span>
+  <span class="pos">Opened 2 Feb 2019 &middot; Last modified 14 Aug 2026 by rgurung</span>
+</div>
+
+<div class="header">
+
+  <!-- client identity -->
+  <section class="panel">
+    <h2>Client</h2>
+    <div class="fields">
+      <label for="f-name">Name</label>
+      <input id="f-name" type="text" value="RIVERTON HARDWARE &amp; SUPPLY LLC">
+
+      <label for="f-dba">DBA</label>
+      <input id="f-dba" type="text" value="Riverton Supply">
+
+      <label for="f-a1">Address</label>
+      <input id="f-a1" type="text" value="4180 CHESTNUT RIDGE RD STE 120">
+
+      <label for="f-a2">&nbsp;</label>
+      <input id="f-a2" type="text" value="">
+    </div>
+    <div class="fields split" style="margin-top:6px">
+      <label for="f-city">City / State / Zip</label>
+      <input id="f-city" type="text" value="GREENSBORO">
+      <div class="inline">
+        <select id="f-state" style="width:70px"><option>NC</option><option>VA</option><option>SC</option></select>
+        <input id="f-zip" type="text" value="27405" style="width:80px">
+      </div>
+
+      <label for="f-county">County</label>
+      <input id="f-county" type="text" value="GUILFORD">
+      <div class="inline">
+        <label for="f-phone" style="text-align:left">Phone</label>
+        <input id="f-phone" type="text" value="(336) 555-0182">
+      </div>
+
+      <label for="f-email">Email</label>
+      <input id="f-email" type="text" value="ap@rivertonsupply.example" style="grid-column:span 2">
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" checked> Sales tax</label>
+      <label><input type="checkbox" checked> Payroll</label>
+      <label><input type="checkbox"> Cig / Tob / OTT</label>
+      <label><input type="checkbox"> Closed</label>
+    </div>
+  </section>
+
+  <!-- registrations and banking -->
+  <section class="panel">
+    <h2>Registrations &amp; banking</h2>
+    <div class="fields split">
+      <label for="f-fed">Federal ID / Start</label>
+      <input id="f-fed" type="text" value="55-4180992">
+      <input id="f-start" type="text" value="02/02/2019">
+
+      <label for="f-state-id">State ID / Rate</label>
+      <input id="f-state-id" type="text" value="60-554180992-001">
+      <input id="f-rate" type="text" value="0.0675">
+
+      <label for="f-with">Withholding / SOS</label>
+      <input id="f-with" type="text" value="30-554180992-001">
+      <input id="f-sos" type="text" value="18402277">
+
+      <label for="f-unmp">UNMP ID / Rate</label>
+      <input id="f-unmp" type="text" value="0041872300">
+      <input id="f-unmp-rate" type="text" value="0.0120">
+
+      <label for="f-bank">Bank</label>
+      <input id="f-bank" type="text" value="Piedmont Federal" style="grid-column:span 2">
+    </div>
+
+    <div class="guard">
+      <h3>Protected identifiers &middot; access is logged</h3>
+      <div class="fields split">
+        <label>Routing / Account</label>
+        <div class="masked" tabindex="0" data-real="099900123">&bull;&bull;&bull;&bull;&bull;0123 <span class="hint">reveal</span></div>
+        <div class="masked" tabindex="0" data-real="000123456789">&bull;&bull;&bull;&bull;&bull;&bull;6789 <span class="hint">reveal</span></div>
+
+        <label>SSN / DOB</label>
+        <div class="masked" tabindex="0" data-real="401-55-8127">&bull;&bull;&bull;-&bull;&bull;-8127 <span class="hint">reveal</span></div>
+        <div class="masked" tabindex="0" data-real="03/19/1981">&bull;&bull;/&bull;&bull;/1981 <span class="hint">reveal</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- contacts -->
+  <section class="panel contacts">
+    <h2>Contacts <span class="count">3</span></h2>
+    <div class="grid-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Owner</th><th>%</th><th>Mail</th></tr></thead>
+        <tbody>
+          <tr aria-selected="true"><td>DALE W. RIVERTON</td><td>dale@rivertonsupply.example</td><td>(336) 555-0182</td><td>Yes</td><td class="num">60</td><td>Yes</td></tr>
+          <tr><td>MARIA OKONKWO</td><td>maria@rivertonsupply.example</td><td>(336) 555-0193</td><td>Yes</td><td class="num">40</td><td>Yes</td></tr>
+          <tr><td>T. BRANNIGAN (bookkeeper)</td><td>tb@brannigancpa.example</td><td>(919) 555-0447</td><td>No</td><td class="num">&mdash;</td><td>No</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="fields" style="margin-top:8px">
+      <label for="c-name">Contact</label>
+      <input id="c-name" type="text" value="DALE W. RIVERTON">
+      <label for="c-email">Email</label>
+      <input id="c-email" type="text" value="dale@rivertonsupply.example">
+    </div>
+  </section>
+</div>
+
+<div class="searchbar">
+  <label for="q" style="text-align:left">Find client</label>
+  <input id="q" type="text" placeholder="Name, phone, or federal ID" autofocus>
+  <span class="pos">402 of 1,847</span>
+  <span class="sep"></span>
+  <button class="navbtn" title="First">&#8676;</button>
+  <button class="navbtn" title="Previous">&#8592;</button>
+  <button class="navbtn" title="Next">&#8594;</button>
+  <button class="navbtn" title="Last">&#8677;</button>
+  <span class="sep"></span>
+  <button class="navbtn">New</button>
+  <button class="navbtn primary" id="save" disabled>Save changes</button>
+  <span class="spacer"></span>
+  <span class="pos" id="dirtynote">No unsaved changes</span>
+</div>
+
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-panel="notes">Notes</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="credentials">Credentials</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="comms">Communications</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="salestax">Sales tax history</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="tasks">Tasks</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="changes">Additions / closures</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="bank">Bank statements</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="annuals">Annuals</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="fin">Financial statements</button>
+  <button class="tab" role="tab" aria-selected="false" data-panel="fn">Functions &amp; reports</button>
+</div>
+
+<div class="panelwrap">
+  <div class="panelhead">
+    <h2 id="panel-title">Notes</h2>
+    <span class="pos" id="panel-count">14 entries</span>
+    <span class="spacer"></span>
+    <button class="navbtn">Add</button>
+    <button class="navbtn">Edit</button>
+    <button class="navbtn">Delete</button>
+  </div>
+  <div class="grid-scroll" id="panel-body"></div>
+</div>
+
+<div class="status">
+  <span>Signed in as <b>rgurung</b></span>
+  <span>Saved 4 minutes ago</span>
+  <span class="spacer"></span>
+  <span><kbd>/</kbd> search</span>
+  <span><kbd>Ctrl</kbd>+<kbd>S</kbd> save</span>
+  <span><kbd>Esc</kbd> discard</span>
+  <span><kbd>&#8592;</kbd><kbd>&#8594;</kbd> switch tab</span>
+</div>
+
+<script>
+/* ---- fabricated panel data ---- */
+const DATA = {
+  notes:{title:"Notes",cols:["Category","Note","Date","Time","By","Modified","Mod by"],rows:[
+    ["General","Ownership change filed with SOS, Okonkwo added at 40%","08/14/2026","2:41 PM","rgurung","08/14/2026","rgurung"],
+    ["Sales tax","Moved to online filing, credentials updated","07/02/2026","11:08 AM","adixit","07/02/2026","adixit"],
+    ["Payroll","Quarterly deposit schedule confirmed monthly","06/19/2026","9:22 AM","mlopez","",""],
+    ["General","Client requested statements by email only","05/30/2026","3:15 PM","rgurung","",""],
+    ["Sales tax","Rate change 6.75% effective 04/01","04/04/2026","10:47 AM","adixit","",""],
+    ["Annuals","Annual report filed, confirmation on file","03/11/2026","1:45 PM","mlopez","",""],
+    ["General","New location added, Chestnut Ridge suite 120","02/27/2026","4:02 PM","rgurung","03/01/2026","adixit"],
+    ["Payroll","W-2s issued for 14 employees","01/22/2026","8:55 AM","mlopez","",""],
+    ["General","Engagement letter countersigned","01/08/2026","2:30 PM","rgurung","",""],
+    ["Bank","Account changed to Piedmont Federal","11/15/2025","3:48 PM","adixit","11/16/2025","rgurung"],
+    ["Sales tax","Amended Q3 return submitted","10/09/2025","9:11 AM","adixit","",""],
+    ["General","Phone number updated per client call","09/23/2025","1:19 PM","mlopez","",""],
+    ["Payroll","Unemployment rate notice received, 1.20%","08/30/2025","10:04 AM","rgurung","",""],
+    ["General","Prior bookkeeper access revoked","07/17/2025","4:37 PM","rgurung","",""]
+  ]},
+  salestax:{title:"Sales tax history",cols:["Period","Filed","Gross sales","Taxable","Tax due","Paid","Method","By"],rows:[
+    ["2026 Q2","07/18/2026","418,204.11","392,880.40","26,519.43","26,519.43","Online","adixit"],
+    ["2026 Q1","04/17/2026","377,915.62","354,102.88","23,901.94","23,901.94","Online","adixit"],
+    ["2025 Q4","01/19/2026","502,338.05","471,229.17","31,807.97","31,807.97","Online","adixit"],
+    ["2025 Q3","10/09/2025","441,072.30","416,553.62","28,117.37","28,117.37","Amended","adixit"],
+    ["2025 Q2","07/16/2025","399,844.18","376,201.55","25,393.60","25,393.60","Online","mlopez"],
+    ["2025 Q1","04/15/2025","362,110.77","340,668.02","22,995.09","22,995.09","Online","mlopez"],
+    ["2024 Q4","01/17/2025","488,201.44","459,884.30","31,042.19","31,042.19","Online","mlopez"]
+  ]},
+  bank:{title:"Bank statements",cols:["Statement","Received","Opening","Deposits","Withdrawals","Closing","Reconciled","By"],rows:[
+    ["Aug 2026","09/03/2026","84,201.55","218,440.12","201,338.74","101,302.93","Yes","mlopez"],
+    ["Jul 2026","08/04/2026","77,918.20","196,552.31","190,268.96","84,201.55","Yes","mlopez"],
+    ["Jun 2026","07/02/2026","91,440.08","183,207.44","196,729.32","77,918.20","Yes","mlopez"],
+    ["May 2026","06/03/2026","88,215.61","209,884.03","206,659.56","91,440.08","Yes","adixit"],
+    ["Apr 2026","05/05/2026","79,330.14","198,441.28","189,555.81","88,215.61","Yes","adixit"]
+  ]},
+  tasks:{title:"Tasks",cols:["Task","Due","Assigned","Status","Priority","Created","By"],rows:[
+    ["Q3 sales tax return","10/20/2026","adixit","Open","Normal","09/01/2026","rgurung"],
+    ["Annual report renewal","12/15/2026","mlopez","Open","Normal","08/14/2026","rgurung"],
+    ["Confirm new bank signatory","09/30/2026","rgurung","In progress","High","09/02/2026","rgurung"],
+    ["Payroll rate verification","11/01/2026","mlopez","Open","Low","08/30/2026","adixit"]
+  ]},
+  comms:{title:"Communications",cols:["Date","Direction","Channel","Contact","Subject","By"],rows:[
+    ["09/02/2026","Out","Email","Dale Riverton","August statement package","system"],
+    ["08/28/2026","In","Phone","Maria Okonkwo","Question on payroll deposit","mlopez"],
+    ["08/14/2026","Out","Email","Dale Riverton","Ownership change confirmation","rgurung"],
+    ["08/02/2026","Out","Email","Dale Riverton","July statement package","system"],
+    ["07/02/2026","Out","Email","Dale Riverton","June statement package","system"]
+  ]}
+};
+
+const body=document.getElementById('panel-body');
+const title=document.getElementById('panel-title');
+const count=document.getElementById('panel-count');
+
+function render(key){
+  const d=DATA[key];
+  if(!d){
+    body.outerHTML='<div class="empty" id="panel-body">This tab is not part of the mockup yet.</div>';
+    title.textContent=document.querySelector('[aria-selected=true]').textContent;
+    count.textContent='';
+    return;
+  }
+  const el=document.getElementById('panel-body');
+  el.className='grid-scroll';
+  el.innerHTML='<table><thead><tr>'+d.cols.map(c=>'<th>'+c+'</th>').join('')+
+    '</tr></thead><tbody>'+d.rows.map((r,i)=>'<tr'+(i===0?' aria-selected="true"':'')+'>'+
+    r.map((c,j)=>'<td'+(j>0&&/^[\d,.]+$/.test(c)?' class="num"':'')+'>'+(c||'&mdash;')+'</td>').join('')+
+    '</tr>').join('')+'</tbody></table>';
+  title.textContent=d.title;
+  count.textContent=d.rows.length+' entries';
+}
+render('notes');
+
+/* tabs, including arrow-key movement */
+const tabs=[...document.querySelectorAll('.tab')];
+tabs.forEach((t,i)=>{
+  t.addEventListener('click',()=>select(i));
+  t.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'){select((i+1)%tabs.length);tabs[(i+1)%tabs.length].focus()}
+    if(e.key==='ArrowLeft'){const p=(i-1+tabs.length)%tabs.length;select(p);tabs[p].focus()}
+  });
+});
+function select(i){
+  tabs.forEach((t,j)=>t.setAttribute('aria-selected',j===i));
+  const wrap=document.getElementById('panel-body')||document.querySelector('.empty');
+  if(wrap && !wrap.id){wrap.id='panel-body'}
+  render(tabs[i].dataset.panel);
+}
+
+/* reveal protected identifiers */
+document.querySelectorAll('.masked').forEach(m=>{
+  const masked=m.innerHTML;
+  const reveal=()=>{
+    const on=m.classList.toggle('shown');
+    m.innerHTML=on?m.dataset.real+' <span class="hint">logged</span>':masked;
+  };
+  m.addEventListener('click',reveal);
+  m.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();reveal()}});
+});
+
+/* dirty tracking */
+const save=document.getElementById('save'), note=document.getElementById('dirtynote');
+let dirty=new Set();
+document.querySelectorAll('.header input[type=text], .header select').forEach(f=>{
+  const initial=f.value;
+  f.addEventListener('input',()=>{
+    f.value!==initial?dirty.add(f.id):dirty.delete(f.id);
+    f.classList.toggle('dirty',f.value!==initial);
+    save.disabled=dirty.size===0;
+    note.textContent=dirty.size?dirty.size+' unsaved '+(dirty.size===1?'change':'changes'):'No unsaved changes';
+  });
+});
+
+/* keyboard */
+addEventListener('keydown',e=>{
+  if(e.key==='/'&&e.target.tagName!=='INPUT'){e.preventDefault();document.getElementById('q').focus()}
+  if(e.ctrlKey&&e.key==='s'){e.preventDefault();if(!save.disabled)save.click()}
+});
+addEventListener('beforeunload',e=>{if(dirty.size){e.preventDefault();e.returnValue=''}});
+</script>
+</body>
+</html>

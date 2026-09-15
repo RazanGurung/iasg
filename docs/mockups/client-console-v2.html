@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IASG MIS — Client Console</title>
+<link rel="stylesheet" href="../../static/css/app.css">
+<style>
+/* ============================================================
+   Page-specific layout only. Tokens and shared components
+   (box, field-row, tab-strip, grid, protected, status-bar,
+   buttons) come from static/css/app.css. All data fabricated.
+   Rebuilt against public/1.webp field-by-field — see docs/design.md.
+   ============================================================ */
+
+.titlebar{
+  height:26px;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--fs-sm);font-weight:600;
+  background:var(--surface);border-bottom:1px solid var(--line-firm);
+}
+
+.console-header{
+  flex:none;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 24px;
+  padding:8px 12px 6px;
+  border-bottom:1px solid var(--line-firm);
+}
+.console-header .field-row{grid-template-columns:150px 1fr}
+.console-header .col:not(:first-child){border-left:1px solid var(--line-firm);padding-left:20px}
+.console-header .col{display:flex;flex-direction:column}
+
+.frow-group{display:flex;align-items:center;gap:10px;margin-bottom:4px;min-height:var(--row)}
+.frow-group > label{font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;flex:0 0 auto}
+.frow-group .lbl-wide{width:150px}
+.frow-group .box{flex:1;min-width:0}
+.frow-group .box.fixed{flex:0 0 auto}
+.chk{display:flex;align-items:center;gap:5px;font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;flex:0 0 auto}
+.chk input{margin:0}
+
+button.iconbtn{width:24px;height:24px;padding:0;font-size:13px;flex:0 0 auto;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#f6faff,#e2ebf9);
+  border:1px solid #b7cceb;border-radius:5px;color:#4a5568;
+  box-shadow:0 1px 2px rgba(20,30,60,.14), inset 0 1px 0 rgba(255,255,255,.7);
+  transition:background .12s ease, border-color .12s ease, color .12s ease}
+button.iconbtn:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+button.iconbtn.danger{background:linear-gradient(180deg,#ec6a5e,#dc4437);
+  border-color:#b6362c;color:#fff;border-radius:50%;
+  box-shadow:0 1px 3px rgba(180,40,30,.35), inset 0 1px 0 rgba(255,255,255,.35)}
+button.iconbtn.danger:hover{background:linear-gradient(180deg,#dc4437,#c0392b)}
+button.link-inline{background:none;border:0;color:var(--accent);font-size:var(--fs-sm);
+  padding:0;height:auto;flex:0 0 auto}
+button.link-inline:hover{text-decoration:underline}
+.iconrow{display:flex;gap:5px;flex:0 0 auto}
+.divider{width:2px;align-self:stretch;background:#333;margin:2px 3px;flex:0 0 auto}
+
+.mini-grid{flex:0 0 66px;height:66px;overflow:auto;border:1px solid var(--line-firm);margin-bottom:5px}
+/* while the detail form is collapsed, let the contacts list fill the column */
+.col:has(#contact-detail[hidden]) .mini-grid{flex:1 1 auto;height:auto}
+.mini-grid table.grid thead th{position:sticky;top:0}
+
+.cmdrow{
+  flex:none;height:30px;
+  display:flex;align-items:center;gap:8px;
+  padding:0 12px;
+  border-bottom:1px solid var(--line-firm);
+}
+.cmdrow .spacer{flex:1}
+
+.panel{flex:1;min-height:0;display:flex;flex-direction:column;padding:6px 12px 8px}
+.panelhead{flex:none;display:flex;align-items:center;gap:8px;padding:2px 0 6px;font-size:var(--fs-sm)}
+.panelhead .spacer{flex:1}
+.scroll{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line-firm)}
+</style>
+</head>
+<body>
+<div class="app-frame">
+
+  <div class="titlebar">[IASG_MIS] - [Control Console]</div>
+
+  <div class="console-header">
+
+    <!-- Column 1: identity -->
+    <section class="col">
+      <div class="frow-group">
+        <label>Client ID:</label><input class="box fixed" style="width:52px" value="118" readonly>
+        <label>Type:</label>
+        <select class="box fixed" style="width:104px"><option>S-Corp</option></select>
+        <button class="iconbtn" title="Summary">&Sigma;</button>
+        <span class="spacer" style="flex:1"></span>
+        <div class="chk"><input type="checkbox" checked> Active</div>
+      </div>
+      <div class="field-row"><label>Name:</label><input class="box" value="ASHGROVE FUEL &amp; VARIETY INC" readonly></div>
+      <div class="field-row"><label>DBA:</label><input class="box" value="" readonly></div>
+      <div class="field-row"><label>Address line 1:</label><input class="box" value="4410 PINEVALE RD STE 6" readonly></div>
+      <div class="field-row"><label>Address line 2:</label><input class="box" value="" readonly></div>
+      <div class="frow-group">
+        <label class="lbl-wide">City / state / ZIP:</label>
+        <input class="box" style="flex:2" value="BURLINGTON" readonly>
+        <select class="box fixed" style="width:54px"><option>NC</option></select>
+        <input class="box fixed" style="width:66px" value="27215" readonly>
+      </div>
+      <div class="frow-group">
+        <label class="lbl-wide" style="display:flex;align-items:center;gap:4px">
+          County:<button class="link-inline">Lookup</button>
+        </label>
+        <input class="box" style="flex:1" value="ALAMANCE" readonly>
+        <label style="margin-left:8px">Phone:</label>
+        <input class="box fixed" style="width:132px" value="(336) 555-0148" readonly>
+      </div>
+      <div class="frow-group">
+        <label class="lbl-wide">Email:</label>
+        <input class="box" style="flex:1" value="ap@ashgrovefuel.example" readonly>
+        <button class="iconbtn" title="Compose"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="10" rx="1"/><path d="M2 4l6 5 6-5"/></svg></button>
+        <button class="iconbtn" title="Open folder"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4h4l1.5 2h7v7h-12.5z"/></svg></button>
+      </div>
+    </section>
+
+    <!-- Column 2: registrations & banking -->
+    <section class="col">
+      <div class="frow-group">
+        <label class="lbl-wide">Federal ID / start dt:</label>
+        <input class="box" style="flex:1" value="58-1120044" readonly>
+        <input class="box fixed" style="width:96px" value="14 Sep 2021" readonly>
+      </div>
+      <div class="frow-group">
+        <label class="lbl-wide">State ID / ST rate:</label>
+        <input class="box" style="flex:1" value="20-581120044F-001" readonly>
+        <input class="box fixed num" style="width:96px" value="0.0700" readonly>
+      </div>
+      <div class="frow-group">
+        <label class="lbl-wide">Withholding / SOS ID:</label>
+        <input class="box" style="flex:1" value="40-581120044F-001" readonly>
+        <input class="box fixed" style="width:96px" value="10228815" readonly>
+      </div>
+      <div class="frow-group">
+        <label class="lbl-wide">UNMP ID / rate:</label>
+        <input class="box" style="flex:1" value="0038871200" readonly>
+        <input class="box fixed num" style="width:96px" value="0.0110" readonly>
+      </div>
+      <div class="field-row"><label>Bank name:</label><input class="box" value="Carolina Trust Bank" readonly></div>
+      <div class="frow-group">
+        <label class="lbl-wide">Routing / account:</label>
+        <span class="protected" style="flex:1" data-real="053100300"><span class="masked">&bull;&bull;&bull;&bull;&bull;0300</span><button type="button" class="tag" title="Reveal">&#128065;</button></span>
+        <span class="protected" style="width:140px;flex:0 0 auto" data-real="000091234512"><span class="masked">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;512</span><button type="button" class="tag" title="Reveal">&#128065;</button></span>
+      </div>
+      <div class="frow-group">
+        <label class="lbl-wide">Services:</label>
+        <div class="chk"><input type="checkbox" checked> Sales tax</div>
+        <div class="chk"><input type="checkbox" checked> Payroll</div>
+        <div class="chk"><input type="checkbox"> Taxes / other</div>
+      </div>
+      <div class="frow-group">
+        <div class="chk"><input type="checkbox"> Closed</div>
+        <label>Date closed:</label>
+        <input class="box fixed" style="width:96px" value="" readonly>
+        <span class="spacer" style="flex:1"></span>
+        <div class="chk"><input type="checkbox" checked> Cig / tobacco / OTT</div>
+      </div>
+    </section>
+
+    <!-- Column 3: contacts -->
+    <section class="col">
+      <div class="frow-group">
+        <label style="width:64px">Contacts:</label>
+        <select class="box" style="flex:1"></select>
+        <span class="iconrow">
+          <button class="iconbtn" title="Add contact">+</button>
+          <button class="iconbtn" title="Edit contact"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+          <button class="iconbtn" title="Remove contact">&#10005;</button>
+          <button class="iconbtn" title="Confirm">&#10003;</button>
+        </span>
+      </div>
+      <div class="mini-grid">
+        <table class="grid">
+          <thead><tr><th>Name</th><th>Email</th><th>Rcpt</th><th>Owner</th><th>Phone</th><th>Active</th></tr></thead>
+          <tbody>
+            <tr ondblclick="document.getElementById('contact-detail').hidden=false">
+              <td>DIANE M. OKAFOR</td><td>diane.okafor@ashgrovefuel.example</td>
+              <td>Yes</td><td>Yes</td><td class="num">(336) 555-0148</td><td>Yes</td>
+            </tr>
+            <tr ondblclick="document.getElementById('contact-detail').hidden=false">
+              <td>LARRY T. FENWICK</td><td>lfenwick@ashgrovefuel.example</td>
+              <td>No</td><td>No</td><td class="num">(336) 555-0172</td><td>Yes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="contact-detail" hidden>
+        <div class="field-row"><label>Contact name:</label><input class="box" value="DIANE M. OKAFOR" readonly></div>
+        <div class="frow-group">
+          <label style="width:64px">Email:</label>
+          <input class="box" style="flex:1" value="diane.okafor@ashgrovefuel.example" readonly>
+          <label style="margin-left:8px">Phone:</label>
+          <input class="box fixed" style="width:122px" value="(336) 555-0148" readonly>
+        </div>
+        <div class="frow-group">
+          <label style="width:64px">SSN:</label>
+          <span class="protected" style="width:130px;flex:0 0 auto" data-real="412-88-6031"><span class="masked">&bull;&bull;&bull;-&bull;&bull;-6031</span><button type="button" class="tag" title="Reveal">&#128065;</button></span>
+          <label style="margin-left:6px">DL:</label>
+          <span class="protected" style="width:110px;flex:0 0 auto" data-real="T88410275"><span class="masked">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span><button type="button" class="tag" title="Reveal">&#128065;</button></span>
+          <label style="margin-left:6px">DOB:</label>
+          <span class="protected" style="width:100px;flex:0 0 auto" data-real="22 Mar 1985"><span class="masked">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span><button type="button" class="tag" title="Reveal">&#128065;</button></span>
+        </div>
+        <div class="frow-group">
+          <div class="chk"><input type="checkbox" checked> Receives email</div>
+          <div class="chk"><input type="checkbox" checked> Is owner</div>
+          <label>%:</label><input class="box fixed" style="width:48px" value="60" readonly>
+          <span class="spacer" style="flex:1"></span>
+          <button class="iconbtn" title="Save contact"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+          <button class="iconbtn danger" title="Cancel" onclick="document.getElementById('contact-detail').hidden=true">&#10005;</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="cmdrow">
+    <label>Name / phone search:</label>
+    <select class="box" style="width:260px"></select>
+    <span class="divider"></span>
+    <select class="box" style="width:180px"></select>
+    <span class="divider"></span>
+    <span class="iconrow">
+      <button class="iconbtn" title="First">&#9198;</button>
+      <button class="iconbtn" title="Previous">&#9664;</button>
+      <button class="iconbtn" title="Next">&#9654;</button>
+      <button class="iconbtn" title="Last">&#9197;</button>
+    </span>
+    <span class="divider"></span>
+    <span class="iconrow">
+      <button class="iconbtn" title="Add client">+</button>
+      <button class="iconbtn" title="Edit client"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+      <button class="iconbtn" title="Save"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+      <button class="iconbtn" title="Confirm">&#10003;</button>
+      <button class="iconbtn danger" title="Cancel">&#10005;</button>
+    </span>
+    <span class="spacer"></span>
+  </div>
+
+  <div class="tab-strip" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="notes">Notes</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="credentials">Credentials</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="comms">Communications</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="salestax">Sales Tax History</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="tasks">Tasks</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="changes">Additions / Closures</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="bank">Bank Statements</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="annuals">Annuals</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="fin">Financial Statements</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="fn">Functions &amp; Reports</button>
+  </div>
+
+  <div class="panel">
+    <div class="panelhead">
+      <b id="ptitle">Notes :</b>
+      <span class="spacer"></span>
+      <button class="iconbtn" title="Add">+</button>
+      <button class="iconbtn" title="Edit"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+      <button class="iconbtn" title="Delete">&#10005;</button>
+    </div>
+    <div class="scroll" id="pbody"></div>
+  </div>
+
+  <div class="status-bar">
+    <span class="who">Login : rgurung</span>
+    <span class="spacer"></span>
+    <span class="iconrow">
+      <button class="iconbtn" title="Lock"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V4.5a3 3 0 0 1 6 0V7"/></svg></button>
+      <button class="iconbtn" title="Exit"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2H3v12h3"/><path d="M14 8H6.5"/><path d="M11.5 5.5L14.5 8l-3 2.5"/></svg></button>
+      <button class="iconbtn danger" title="Close">&#10005;</button>
+    </span>
+  </div>
+
+</div>
+
+<script>
+const DATA={
+ notes:{c:["Category","Note","Date","Time","By","Mod date","Mod time","ModBy"],r:[
+  ["General","Ownership updated, Okafor confirmed at 60%","14 Aug 2026","10:12 AM","rgurung","14 Aug 2026","10:40 AM","rgurung"],
+  ["Sales tax","Moved to online filing, credentials updated","02 Jul 2026","09:05 AM","adixit","",   "",       ""],
+  ["General","Client requested statements by email only","30 May 2026","02:20 PM","rgurung","",   "",       ""],
+  ["Payroll","Quarterly deposit schedule confirmed monthly","19 Jun 2026","11:41 AM","mlopez","", "",       ""]
+ ]},
+ salestax:{c:["Period","Filed","Gross sales","Taxable","Tax due","Method","By"],r:[
+  ["2026 Q2","18 Jul 2026","418,204.11","392,880.40","26,519.43","Online","adixit"],
+  ["2026 Q1","17 Apr 2026","377,915.62","354,102.88","23,901.94","Online","adixit"],
+  ["2025 Q4","19 Jan 2026","502,338.05","471,229.17","31,807.97","Online","adixit"]
+ ]},
+ bank:{c:["Statement","Received","Opening","Deposits","Withdrawals","Closing","By"],r:[
+  ["Aug 2026","03 Sep 2026","84,201.55","218,440.12","201,338.74","101,302.93","mlopez"],
+  ["Jul 2026","04 Aug 2026","77,918.20","196,552.31","190,268.96","84,201.55","mlopez"]
+ ]},
+ tasks:{c:["Task","Due","Assigned","Status","Priority"],r:[
+  ["Q3 sales tax return","20 Oct 2026","adixit","Open","Normal"],
+  ["Annual report renewal","15 Dec 2026","mlopez","Open","Normal"]
+ ]},
+ comms:{c:["Date","Direction","Channel","Contact","Subject","By"],r:[
+  ["02 Sep 2026","Out","Email","Diane Okafor","August statement package","automatic"],
+  ["14 Aug 2026","Out","Email","Diane Okafor","Ownership change confirmation","rgurung"]
+ ]}
+};
+const NUMCOL=/sales|taxable|due|opening|deposits|withdrawals|closing/i;
+
+const body=document.getElementById('pbody');
+function render(k){
+  const d=DATA[k];
+  document.getElementById('ptitle').textContent=document.querySelector('.tab[aria-selected=true]').textContent+' :';
+  if(!d){
+    body.innerHTML='<p class="empty-state">Not built in this pass — see docs/mockups/README.md.</p>';
+    return;
+  }
+  body.innerHTML='<table class="grid"><thead><tr>'+
+    d.c.map((c,j)=>'<th'+(j>1&&NUMCOL.test(c)?' class="num"':'')+'>'+c+'</th>').join('')+
+    '</tr></thead><tbody>'+d.r.map((r,i)=>'<tr'+(i===0?' aria-selected="true"':'')+'>'+
+    r.map(c=>'<td'+(/^[\d,.]+$/.test(c)?' class="num"':(c===''?' class="calc"':''))+'>'+(c||'—')+'</td>').join('')+
+    '</tr>').join('')+'</tbody></table>';
+}
+render('notes');
+
+const tabs=[...document.querySelectorAll('.tab')];
+tabs.forEach((t,i)=>t.addEventListener('click',()=>{
+  tabs.forEach((x,j)=>x.setAttribute('aria-selected',j===i));
+  render(t.dataset.panel);
+}));
+
+document.querySelectorAll('.protected').forEach(p=>{
+  const maskedEl=p.querySelector('.masked'), tagEl=p.querySelector('.tag');
+  const shut=maskedEl.textContent;
+  tagEl.addEventListener('click',()=>{
+    const on=p.classList.toggle('open');
+    maskedEl.textContent=on?p.dataset.real:shut;
+    tagEl.title=on?'Viewed, logged':'Reveal';
+  });
+});
+</script>
+</body>
+</html>

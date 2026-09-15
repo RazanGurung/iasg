@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.sqlite3
+/staticfiles/
+/media/
+/build/
+/dist/
+*.spec
+.pytest_cache/
+.ruff_cache/
+.idea/
+.vscode/
+
+# never commit these
+*.accdb
+*.accde
+*.mdb
+*.laccdb
+/exports/
+/ach_output/
+*.key
+*.pem
+
+# legacy app screenshots — real client PII, reference only, never commit
+/public/

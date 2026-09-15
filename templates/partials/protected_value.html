@@ -1,0 +1,12 @@
+{# expects: masked, reveal_url — the real value is never rendered server-side #}
+{# until requested; the view behind reveal_url logs the reveal (apps.security) #}
+{# optional: style (inline style on the box, for sizing) #}
+{# optional: bare — no border/background box, just masked text + reveal icon; #}
+{# use inside plain grid cells (e.g. Credentials) instead of boxed field rows #}
+<span class="protected{% if bare %} bare{% endif %}" id="protected-{{ field_id }}" style="{{ style }}">
+  <span class="masked">{{ masked }}</span>
+  <button type="button" class="tag" title="Reveal"
+          hx-get="{{ reveal_url }}"
+          hx-target="closest .protected"
+          hx-swap="innerHTML">&#128065;</button>
+</span>

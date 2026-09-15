@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — IASG MIS{% endblock %}
+{% block content %}
+<div style="padding:16px 20px;overflow:auto">
+  <h2 style="font-size:13px;margin-bottom:10px">{{ title }} <span style="color:var(--muted);font-weight:400">({{ rows|length }})</span></h2>
+  <table class="grid">
+    <thead><tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+      {% empty %}
+      <tr><td colspan="{{ columns|length }}" class="empty-state">Nothing to show.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

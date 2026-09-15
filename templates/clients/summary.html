@@ -1,0 +1,113 @@
+{% comment %}
+Client Data Summary — a print-style report, ported from public/15.webp.
+Routing #, Account #, SSN and Drivers Licence stay masked-and-revealed
+(docs/security.md) — the legacy screenshot shows them in the clear, a
+deliberate deviation for consistency with every other screen in this app.
+{% endcomment %}
+<div class="modal-overlay">
+  <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="sum-title" style="width:640px;max-height:92vh">
+    <div class="modal-titlebar" id="sum-title">
+      [IASG MIS] - [Client Summary]
+      <button type="button" class="st-close" title="Close" onclick="closeModal()"
+        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:0;background:none;cursor:pointer;color:var(--ink)">&#10005;</button>
+    </div>
+    <div class="modal-body" style="padding:16px 22px;overflow:auto">
+      <style>
+        .sum-title{text-align:center;font-size:15px;font-weight:700;letter-spacing:.04em;margin-bottom:14px}
+        .sum-row{display:grid;grid-template-columns:120px 1fr;gap:0 10px;margin-bottom:6px;align-items:center}
+        .sum-row.two{grid-template-columns:120px 1fr 90px 1fr}
+        .sum-row label{font-size:var(--fs-sm);color:var(--muted)}
+        .sum-row .box{height:22px;font-size:var(--fs-sm)}
+        .sum-h{font-size:var(--fs-sm);font-weight:700;font-style:italic;margin:14px 0 6px;
+          border-bottom:1px solid var(--line);padding-bottom:2px}
+        .sum-owner{font-size:var(--fs-sm);color:var(--muted);font-style:italic;margin-bottom:2px}
+      </style>
+
+      <div class="sum-title">CLIENT DATA SUMMARY</div>
+
+      <div class="sum-row"><label>Name:</label><input class="box" value="{{ client.name }}" readonly></div>
+      <div class="sum-row"><label>DBA :</label><input class="box" value="{{ client.dba }}" readonly></div>
+      <div class="sum-row"><label>Address</label><input class="box" value="{{ client.address1 }}{% if client.address2 %}, {{ client.address2 }}{% endif %}" readonly></div>
+      <div class="sum-row two">
+        <label>City / State / ZipCode :</label><input class="box" value="{{ client.city }}" readonly>
+        <input class="box" value="{{ client.state }}" readonly>
+        <input class="box" value="{{ client.zip }}" readonly>
+      </div>
+      <div class="sum-row two">
+        <label>County :</label><input class="box" value="{{ client.county }}" readonly>
+        <label>Corporation Type :</label><input class="box" value="{{ client.type }}" readonly>
+      </div>
+      <div class="sum-row two">
+        <label>Phone :</label><input class="box" value="{{ client.phone }}" readonly>
+        <label>Email :</label><input class="box" value="{{ client.email }}" readonly>
+      </div>
+
+      <div class="sum-h">ID's</div>
+      <div class="sum-row two">
+        <label></label><span></span>
+        <label>Start Date :</label><input class="box" value="{{ client.start_date }}" readonly>
+      </div>
+      <div class="sum-row two">
+        <label>Federal ID</label><input class="box" value="{{ client.federal_id }}" readonly>
+        <label>State ID :</label><input class="box" value="{{ client.state_id }}" readonly>
+      </div>
+      <div class="sum-row two">
+        <label>SOS ID :</label><input class="box" value="{{ client.sos_id_value }}" readonly>
+        <label>Withholding ID :</label><input class="box" value="{{ client.withholding_sos_id }}" readonly>
+      </div>
+      <div class="sum-row two">
+        <label>Unemployment ID</label><input class="box" value="{{ client.unmp_id }}" readonly>
+        <label>Unemployment Rate :</label><input class="box num" value="{{ client.unmp_rate }}" readonly>
+      </div>
+
+      <div class="sum-h">Sales Tax Rates</div>
+      <div class="sum-row two">
+        <label>State Rate :</label><input class="box num" value="{{ client.state_rate }}" readonly>
+        <label>Combined Rate :</label><input class="box num" value="{{ combined_rate }}" readonly>
+      </div>
+      <div class="sum-row two">
+        <label>County Rate :</label><input class="box num" value="{{ client.county_rate }}" readonly>
+        <label>City Rate :</label><input class="box num" value="{{ client.city_rate }}" readonly>
+      </div>
+      <div class="sum-row"><label>Special Rate :</label><input class="box num" value="{{ client.special_rate }}" readonly></div>
+
+      <div class="sum-h">Banking Information</div>
+      <div class="sum-row"><label>Bank Name :</label><input class="box" value="{{ client.bank_name }}" readonly></div>
+      <div class="sum-row two">
+        <label>Routing Number :</label>
+        {% include "partials/protected_value.html" with field_id="sum-routing" masked=client.routing_masked reveal_url=reveal_urls.routing bare=True %}
+        <label>Account Number :</label>
+        {% include "partials/protected_value.html" with field_id="sum-account" masked=client.account_masked reveal_url=reveal_urls.account bare=True %}
+      </div>
+
+      <div class="sum-h">Services Received</div>
+      <div class="frow-group">
+        <div class="chk"><input type="checkbox" {% if client.sales_tax %}checked{% endif %} disabled> Monthly ST</div>
+        <div class="chk"><input type="checkbox" {% if client.payroll %}checked{% endif %} disabled> Payroll</div>
+        <div class="chk"><input type="checkbox" {% if client.taxes_other %}checked{% endif %} disabled> Taxes / Other</div>
+      </div>
+
+      <div class="sum-h">Owner / Contact Information</div>
+      {% if owner %}
+      <div class="sum-owner">Name / Email &middot; Date of Birth / Phone Number &middot; SSN # / Drivers Licence &middot; % Owned</div>
+      <div class="sum-row two">
+        <label>{{ owner.name }}</label><input class="box" value="{{ owner.email }}" readonly>
+        <label>{{ owner.dob|default:"—" }}</label><input class="box" value="{{ owner.phone }}" readonly>
+      </div>
+      <div class="sum-row two">
+        <label>SSN #</label>
+        {% include "partials/protected_value.html" with field_id="sum-ssn" masked=owner.ssn_masked reveal_url=reveal_urls.ssn bare=True %}
+        <label>Drivers Licence</label>
+        {% include "partials/protected_value.html" with field_id="sum-dl" masked=owner.dl_masked reveal_url=reveal_urls.dl bare=True %}
+      </div>
+      <div class="sum-row"><label>Percentage Owned</label><input class="box fixed" style="width:60px" value="{{ owner.pct }}" readonly></div>
+      {% else %}
+      <p class="empty-state">No contacts on file.</p>
+      {% endif %}
+    </div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button type="button" onclick="closeModal()" autofocus>Close</button>
+    </div>
+  </div>
+</div>

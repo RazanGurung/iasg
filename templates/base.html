@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}IASG MIS{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'css/app.css' %}">
+<script src="{% static 'js/htmx.min.js' %}" defer></script>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="app-frame">
+
+  <div class="identity">
+    {% block identity %}
+      <h1>IASG MIS</h1>
+      <span class="spacer"></span>
+    {% endblock %}
+  </div>
+
+  {% block header %}{% endblock %}
+
+  <div class="app-content">
+    {% block content %}{% endblock %}
+  </div>
+
+  <div class="status-bar">
+    <span>Signed in as <span class="who">{{ request.user.get_username|default:"—" }}</span></span>
+    {% if request.user.is_authenticated %}
+    <form method="post" action="{% url 'logout' %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="link" style="font-size:var(--fs-sm)">Sign out</button>
+    </form>
+    {% endif %}
+    {% block status_extra %}{% endblock %}
+    <span class="spacer"></span>
+    <span>{% block status_hints %}{% endblock %}</span>
+  </div>
+
+</div>
+
+<div id="modal-root"></div>
+<script>
+  function closeModal(){
+    var root = document.getElementById('modal-root');
+    if(root) root.innerHTML = '';
+  }
+
+  // Yes/No confirmation, used before any destructive (delete) action —
+  // styled like the app's other modals rather than a native confirm(),
+  // which the legacy screens never used and which HTMX can't drive.
+  function confirmAction(message, onYes){
+    var root = document.getElementById('modal-root');
+    root.innerHTML =
+      '<div class="modal-overlay">' +
+        '<div class="modal-dialog" style="width:300px">' +
+          '<div class="modal-titlebar">Confirm</div>' +
+          '<div class="modal-body" style="padding:20px 16px;text-align:center">' + message + '</div>' +
+          '<div class="modal-foot">' +
+            '<span class="spacer"></span>' +
+            '<button type="button" class="solid" id="confirm-yes-btn">Yes</button>' +
+            '<button type="button" onclick="closeModal()">No</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('confirm-yes-btn').onclick = function(){
+      closeModal();
+      onYes();
+    };
+  }
+
+  function confirmDeleteForm(formId, message){
+    confirmAction(message, function(){
+      var form = document.getElementById(formId);
+      if(form) form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+  }
+  document.addEventListener('click', function(e){
+    if(e.target.classList && e.target.classList.contains('modal-overlay')) closeModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeModal();
+  });
+
+  // Every htmx POST in the app carries the CSRF token — Django's
+  // CsrfViewMiddleware requires it on any non-GET request.
+  function getCookie(name){
+    const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? decodeURIComponent(match[2]) : '';
+  }
+  document.body.addEventListener('htmx:configRequest', function(evt){
+    evt.detail.headers['X-CSRFToken'] = getCookie('csrftoken');
+  });
+</script>
+{% block extra_body %}{% endblock %}
+</body>
+</html>

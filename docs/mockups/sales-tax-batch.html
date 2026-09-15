@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Manage Sales Tax Data</title>
+<style>
+/* ============================================================
+   Batch processing grid. Second archetype: worklist, not record.
+   1920x1080. Fabricated data.
+   ============================================================ */
+:root{
+  --page:#eceef1; --surface:#fff;
+  --line:#dfe3e8; --line-firm:#c2c8d0;
+  --ink:#14181d; --muted:#616b78; --faint:#949daa;
+  --accent:#14507e; --accent-bg:#eaf1f8;
+  --calc-bg:#f4f6f8;              /* computed cells */
+  --entry-line:#b9c2cc;           /* typed cells */
+  --due:#9a5b00; --due-bg:#fff8ea;
+  --late:#9d2419; --late-bg:#fdf0ee;
+  --ok:#2e7d4f;
+  --row:29px; --fs:13.5px; --fs-sm:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",-apple-system,system-ui,sans-serif;font-size:var(--fs);color:var(--ink);
+  background:var(--page);line-height:1.35;height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  -webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- title row ---------- */
+.top{height:44px;flex:none;display:flex;align-items:baseline;gap:14px;padding:0 20px;background:var(--surface)}
+.top h1{font-size:17px;font-weight:600;letter-spacing:-.15px}
+.top .period{font-size:var(--fs-sm);color:var(--muted)}
+.top .spacer{flex:1}
+
+/* deadline tiers */
+.tiers{display:flex;gap:6px;align-items:center}
+.tier{display:flex;align-items:baseline;gap:6px;padding:3px 9px;font-size:var(--fs-sm);border:1px solid var(--line-firm)}
+.tier b{font-weight:600}
+.tier.done{color:var(--ok);border-color:#bcd9c8}
+.tier.due{color:var(--due);background:var(--due-bg);border-color:#e2cd9c}
+.tier.late{color:var(--late);background:var(--late-bg);border-color:#e5bab4}
+
+/* ---------- control row ---------- */
+.controls{height:46px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;
+  background:var(--surface);border-bottom:1px solid var(--line-firm)}
+select,input[type=text]{height:28px;font:inherit;font-size:var(--fs-sm);color:var(--ink);
+  background:var(--surface);border:0;border-bottom:1px solid var(--line-firm);padding:0 6px}
+select:focus,input:focus{outline:none;border-bottom:2px solid var(--accent)}
+#find{width:230px}
+
+.seg{display:flex;border:1px solid var(--line-firm)}
+.seg button{height:28px;padding:0 14px;font:inherit;font-size:var(--fs-sm);color:var(--muted);
+  background:transparent;border:0;border-right:1px solid var(--line-firm);cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--accent-bg);color:var(--accent)}
+.seg button[aria-pressed=true]{background:var(--accent);color:#fff}
+
+button.plain{height:28px;padding:0 12px;font:inherit;font-size:var(--fs-sm);color:var(--ink);
+  background:transparent;border:1px solid transparent;cursor:pointer}
+button.plain:hover{background:var(--accent-bg);color:var(--accent)}
+button.solid{height:28px;padding:0 14px;font:inherit;font-size:var(--fs-sm);
+  background:var(--accent);color:#fff;border:0;cursor:pointer}
+button.solid:hover{background:#0f3f66}
+.controls .spacer{flex:1}
+
+/* progress */
+.progress{display:flex;align-items:center;gap:10px;font-size:var(--fs-sm);color:var(--muted)}
+.bar{width:150px;height:6px;background:var(--line);position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--ok)}
+.progress b{color:var(--ink);font-weight:600}
+
+/* ---------- grid ---------- */
+.wrap{flex:1;min-height:0;overflow:auto;background:var(--surface)}
+table{border-collapse:separate;border-spacing:0;width:100%}
+
+thead th{position:sticky;background:var(--surface);z-index:3;font-size:var(--fs-sm);font-weight:600;
+  color:var(--muted);text-align:left;white-space:nowrap;padding:0 8px}
+thead tr.groups th{top:0;height:24px;border-bottom:1px solid var(--line);
+  font-size:11px;color:var(--faint);letter-spacing:.3px}
+thead tr.groups th.g{text-align:center;border-left:1px solid var(--line)}
+thead tr.cols th{top:24px;height:26px;border-bottom:1px solid var(--line-firm)}
+thead tr.cols th.r{text-align:right}
+thead th.grpstart{border-left:1px solid var(--line)}
+
+tbody td{height:var(--row);padding:0 8px;border-bottom:1px solid var(--line);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+tbody td.grpstart{border-left:1px solid var(--line)}
+tbody td.r{text-align:right}
+tbody td.calc{background:var(--calc-bg);color:var(--muted)}
+tbody tr:hover td{background:var(--accent-bg)}
+tbody tr:hover td.calc{background:#e4edf6}
+tbody tr.done td{color:var(--muted)}
+
+/* frozen first columns */
+th.f1,td.f1{position:sticky;left:0;z-index:2;background:var(--surface);width:34px;text-align:center}
+th.f2,td.f2{position:sticky;left:34px;z-index:2;background:var(--surface);min-width:210px;
+  border-right:1px solid var(--line-firm)}
+thead th.f1,thead th.f2{z-index:4}
+tbody tr:hover td.f1,tbody tr:hover td.f2{background:var(--accent-bg)}
+
+/* editable cells */
+td input{width:100%;height:calc(var(--row) - 6px);font:inherit;font-size:var(--fs);text-align:right;
+  font-variant-numeric:tabular-nums;color:var(--ink);background:transparent;
+  border:0;border-bottom:1px solid var(--entry-line);padding:0 2px}
+td input:focus{outline:none;border-bottom:2px solid var(--accent);background:#fff}
+td input.filled{border-bottom-color:transparent}
+
+.state{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm)}
+.state::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--faint)}
+.state.ok::before{background:var(--ok)}
+.state.open::before{background:var(--due)}
+
+.prot{cursor:pointer;color:var(--faint);letter-spacing:.3px}
+.prot:hover{color:var(--ink)}
+.client{font-weight:600}
+.sub{font-size:var(--fs-sm);color:var(--faint);font-weight:400}
+
+/* totals */
+tfoot td{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line-firm);
+  height:30px;padding:0 8px;font-weight:600;font-variant-numeric:tabular-nums}
+tfoot td.r{text-align:right}
+tfoot td.f1,tfoot td.f2{z-index:2}
+
+/* ---------- status ---------- */
+.status{height:28px;flex:none;display:flex;align-items:center;gap:18px;padding:0 20px;
+  font-size:var(--fs-sm);color:var(--muted);background:var(--page)}
+.status .spacer{flex:1}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>Monthly sales tax</h1>
+  <span class="period">August 2026 &middot; 574 clients</span>
+  <span class="spacer"></span>
+  <span class="tiers">
+    <span class="tier done">1st tier <b>due 5 Sep</b> · filed</span>
+    <span class="tier due">2nd tier <b>due 10 Sep</b> · 9 open</span>
+    <span class="tier late">3rd tier <b>due 15 Sep</b> · 7 open</span>
+  </span>
+</div>
+
+<div class="controls">
+  <select><option>2026</option><option>2025</option></select>
+  <select><option>August</option><option>July</option><option>June</option></select>
+  <select><option>All states</option><option>North Carolina</option><option>Virginia</option></select>
+  <input id="find" type="text" placeholder="Find a client">
+
+  <span class="seg" role="group">
+    <button aria-pressed="true">Needs work · 16</button>
+    <button aria-pressed="false">Filed · 558</button>
+    <button aria-pressed="false">All · 574</button>
+  </span>
+
+  <span class="spacer"></span>
+  <span class="progress">
+    <span class="bar"><i style="width:97.2%"></i></span>
+    <span><b>558</b> of 574 filed</span>
+  </span>
+  <button class="plain" id="rates">Show rates</button>
+  <button class="plain">Regenerate period</button>
+  <button class="solid">Submit filed rows</button>
+</div>
+
+<div class="wrap">
+<table id="grid">
+  <thead>
+    <tr class="groups">
+      <th class="f1"></th>
+      <th class="f2"></th>
+      <th colspan="3" class="g">Entered</th>
+      <th colspan="2" class="g rate">State</th>
+      <th colspan="2" class="g rate">County</th>
+      <th colspan="2" class="g rate">City</th>
+      <th colspan="2" class="g rate">Special</th>
+      <th colspan="1" class="g">Meal</th>
+      <th colspan="1" class="g">Payable</th>
+      <th colspan="3" class="g">Payment</th>
+    </tr>
+    <tr class="cols">
+      <th class="f1" title="Locked">&#128274;</th>
+      <th class="f2">Client</th>
+      <th class="r grpstart">Total sales</th>
+      <th class="r">Exempt</th>
+      <th class="r">Meal tax</th>
+      <th class="r grpstart rate">Rate</th>
+      <th class="r">Amount</th>
+      <th class="r grpstart rate">Rate</th>
+      <th class="r">Amount</th>
+      <th class="r grpstart rate">Rate</th>
+      <th class="r">Amount</th>
+      <th class="r grpstart rate">Rate</th>
+      <th class="r">Amount</th>
+      <th class="r grpstart">Amount</th>
+      <th class="r grpstart">Total</th>
+      <th class="grpstart">Mode</th>
+      <th>Account</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+  <tfoot>
+    <tr>
+      <td class="f1"></td>
+      <td class="f2">16 clients shown</td>
+      <td class="r grpstart" id="t-sales"></td>
+      <td class="r" id="t-exempt"></td>
+      <td class="r" id="t-meal"></td>
+      <td class="rate"></td><td class="r" id="t-state"></td>
+      <td class="rate"></td><td class="r" id="t-county"></td>
+      <td class="rate"></td><td class="r" id="t-city"></td>
+      <td class="rate"></td><td class="r" id="t-spcl"></td>
+      <td class="r" id="t-mt"></td>
+      <td class="r" id="t-total"></td>
+      <td colspan="3"></td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+
+<div class="status">
+  <span>Signed in as <b style="color:var(--ink)">rgurung</b></span>
+  <span>Period locked for 558 filed rows</span>
+  <span class="spacer"></span>
+  <span>Tab moves across &nbsp;·&nbsp; Enter files the row and jumps to the next open one &nbsp;·&nbsp; Ctrl+S saves</span>
+</div>
+
+<script>
+/* fabricated: county, city, special, state rates per client */
+const R=[
+ ["ASHWORTH LANE MARKET LLC","Guilford, NC",.0475,.0225,.005,.000,.02,318402.55,12440.10],
+ ["BRIAR CREEK FUEL STOP INC","Forsyth, NC",.0475,.0225,.005,.000,.02,204118.90,8802.44],
+ ["CEDAR POINT GROCERY LLC","Halifax, VA",.043,.01,.000,.007,.00,167230.18,5410.77],
+ ["DELMAR TOBACCO OUTLET","Guilford, NC",.0475,.0225,.005,.000,.02,98440.62,3120.55],
+ ["EASTGATE CONVENIENCE INC","Wake, NC",.0475,.02,.005,.000,.02,441908.33,18220.91],
+ ["FAIRVIEW MARKET & DELI","Forsyth, NC",.0475,.0225,.005,.000,.02,132775.40,4988.02],
+ ["GLENWOOD SUPPLY CO","Durham, NC",.0475,.0225,.005,.000,.02,276014.77,9911.30],
+ ["HARPERS MILL DISCOUNT","Halifax, VA",.043,.01,.000,.007,.00,88120.05,2440.18],
+ ["IRONWOOD SERVICE CENTER","Guilford, NC",.0475,.0225,.005,.000,.02,199447.12,7005.66],
+ ["JUNIPER STREET CAFE","Wake, NC",.0475,.02,.005,.000,.02,74210.88,1980.44],
+ ["KESTREL FOOD MART LLC","Forsyth, NC",.0475,.0225,.005,.000,.02,163902.41,6122.80],
+ ["LAUREL RIDGE PANTRY","Durham, NC",.0475,.0225,.005,.000,.02,120884.19,4402.11],
+ ["MAPLE HOLLOW STORE INC","Guilford, NC",.0475,.0225,.005,.000,.02,308771.63,11240.55],
+ ["NORTHFIELD TRADING CO","Halifax, VA",.043,.01,.000,.007,.00,142330.77,4118.90],
+ ["OAKLINE BEVERAGE LLC","Wake, NC",.0475,.02,.005,.000,.02,231005.44,8840.12],
+ ["PINEHURST QUICK STOP","Forsyth, NC",.0475,.0225,.005,.000,.02,187640.29,6702.33]
+];
+const MODE=["ACH","ACH","Check","ACH","ACH","ACH","Check","ACH","ACH","ACH","ACH","Check","ACH","ACH","ACH","ACH"];
+const m=n=>n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pc=r=>(r*100).toFixed(2)+'%';
+
+const tbody=document.getElementById('rows');
+let filled=new Set([0,1,2,4,6]);   // some rows already entered
+
+function build(){
+  tbody.innerHTML='';
+  R.forEach((c,i)=>{
+    const [name,loc,st,co,ci,sp,mt,sales,exempt]=c;
+    const has=filled.has(i);
+    const taxable=has?sales-exempt:0;
+    const a=r=>has?taxable*r:0;
+    const meal=has?taxable*mt*0:0;
+    const total=has?a(st)+a(co)+a(ci)+a(sp):0;
+    const tr=document.createElement('tr');
+    if(has)tr.className='done';
+    tr.innerHTML=
+      `<td class="f1"><input type="checkbox" ${has?'checked':''} style="width:auto"></td>`+
+      `<td class="f2"><span class="client">${name}</span><br><span class="sub">${loc}</span></td>`+
+      `<td class="r grpstart"><input class="s ${has?'filled':''}" data-i="${i}" value="${has?m(sales):''}" placeholder="0.00"></td>`+
+      `<td class="r"><input class="e ${has?'filled':''}" data-i="${i}" value="${has?m(exempt):''}" placeholder="0.00"></td>`+
+      `<td class="r"><input class="m ${has?'filled':''}" data-i="${i}" value="${has?'0.00':''}" placeholder="0.00"></td>`+
+      `<td class="r calc grpstart rate">${pc(st)}</td><td class="r calc">${has?m(a(st)):'—'}</td>`+
+      `<td class="r calc grpstart rate">${pc(co)}</td><td class="r calc">${has?m(a(co)):'—'}</td>`+
+      `<td class="r calc grpstart rate">${pc(ci)}</td><td class="r calc">${has?m(a(ci)):'—'}</td>`+
+      `<td class="r calc grpstart rate">${sp?pc(sp):'—'}</td><td class="r calc">${has&&sp?m(a(sp)):'—'}</td>`+
+      `<td class="r calc grpstart">${has?m(meal):'—'}</td>`+
+      `<td class="r calc grpstart"><b style="color:var(--ink)">${has?m(total):'—'}</b></td>`+
+      `<td class="grpstart">${MODE[i]}</td>`+
+      `<td><span class="prot" tabindex="0" data-real="0${123456789+i}">••••${(6789+i)}</span></td>`+
+      `<td><span class="state ${has?'ok':'open'}">${has?'Ready':'Awaiting figures'}</span></td>`;
+    tbody.appendChild(tr);
+  });
+  wire();
+  totals();
+}
+
+function totals(){
+  let s=0,e=0,mtx=0,ts=0,tc=0,tci=0,tsp=0,tt=0;
+  R.forEach((c,i)=>{
+    if(!filled.has(i))return;
+    const [,,st,co,ci,sp,,sales,exempt]=c, tax=sales-exempt;
+    s+=sales;e+=exempt;ts+=tax*st;tc+=tax*co;tci+=tax*ci;tsp+=tax*sp;
+    tt+=tax*st+tax*co+tax*ci+tax*sp;
+  });
+  const set=(id,v)=>document.getElementById(id).textContent=m(v);
+  set('t-sales',s);set('t-exempt',e);set('t-meal',mtx);
+  set('t-state',ts);set('t-county',tc);set('t-city',tci);set('t-spcl',tsp);
+  set('t-mt',0);set('t-total',tt);
+}
+
+function wire(){
+  document.querySelectorAll('.prot').forEach(p=>{
+    const shut=p.textContent;
+    p.onclick=()=>{p.textContent=p.textContent===shut?p.dataset.real:shut};
+  });
+  document.querySelectorAll('td input.s, td input.e').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const i=+inp.dataset.i, row=inp.closest('tr');
+      const s=parseFloat(row.querySelector('.s').value.replace(/,/g,''))||0;
+      const e=parseFloat(row.querySelector('.e').value.replace(/,/g,''))||0;
+      if(!s){return}
+      const [,,st,co,ci,sp]=R[i], tax=s-e;
+      const cells=row.querySelectorAll('td.calc');
+      cells[1].textContent=m(tax*st);
+      cells[3].textContent=m(tax*co);
+      cells[5].textContent=m(tax*ci);
+      cells[7].textContent=sp?m(tax*sp):'—';
+      cells[9].textContent=m(0);
+      cells[10].innerHTML='<b style="color:var(--ink)">'+m(tax*st+tax*co+tax*ci+tax*sp)+'</b>';
+      row.querySelector('.state').className='state ok';
+      row.querySelector('.state').textContent='Ready';
+    });
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        const rows=[...tbody.querySelectorAll('tr')];
+        const next=rows[rows.indexOf(inp.closest('tr'))+1];
+        if(next)next.querySelector('input.s').focus();
+      }
+    });
+  });
+}
+
+document.getElementById('rates').onclick=e=>{
+  const on=document.body.classList.toggle('hide-rates');
+  document.querySelectorAll('.rate').forEach(el=>el.style.display=on?'none':'');
+  e.target.textContent=on?'Show rates':'Hide rates';
+};
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true');
+});
+build();
+document.getElementById('rates').click();   // start with rates hidden
+</script>
+</body>
+</html>

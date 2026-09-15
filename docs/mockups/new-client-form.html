@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New client</title>
+<style>
+:root{
+  --page:#eceef1; --surface:#fff;
+  --line:#dfe3e8; --line-firm:#c2c8d0;
+  --ink:#14181d; --muted:#616b78; --faint:#949daa;
+  --accent:#14507e; --accent-bg:#eaf1f8;
+  --warn:#9a5b00; --warn-bg:#fff8ea;
+  --stop:#9d2419; --stop-bg:#fdf0ee;
+  --ok:#2e7d4f;
+  --fs:13.5px; --fs-sm:12px; --field:30px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",-apple-system,system-ui,sans-serif;font-size:var(--fs);color:var(--ink);
+  background:var(--page);line-height:1.35;height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  -webkit-font-smoothing:antialiased}
+input,.num{font-variant-numeric:tabular-nums}
+
+.top{height:44px;flex:none;display:flex;align-items:baseline;gap:12px;padding:0 20px;background:var(--surface)}
+.top h1{font-size:17px;font-weight:600;letter-spacing:-.15px}
+.top .sub{font-size:var(--fs-sm);color:var(--muted)}
+.top .spacer{flex:1}
+
+.body{flex:1;min-height:0;overflow:auto;background:var(--surface);border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line-firm);padding:14px 20px 18px}
+
+.cols{display:grid;grid-template-columns:1fr 1fr 1fr 300px;gap:0 40px;align-items:start}
+.col{min-width:0}
+.aside{border-left:1px solid var(--line);padding-left:24px}
+
+h2{font-size:var(--fs-sm);font-weight:600;color:var(--muted);margin:0 0 10px;
+  padding-bottom:6px;border-bottom:1px solid var(--line)}
+h2:not(:first-child){margin-top:22px}
+
+.f{display:grid;grid-template-columns:1fr;gap:2px;margin-bottom:11px}
+.f.two{grid-template-columns:1fr 1fr;gap:2px 12px}
+.f.two label{grid-column:auto}
+label{font-size:var(--fs-sm);color:var(--muted)}
+label .req{color:var(--stop)}
+label .opt{color:var(--faint);font-weight:400}
+
+input[type=text],select{
+  height:var(--field);width:100%;font:inherit;color:var(--ink);
+  background:var(--surface);border:0;border-bottom:1px solid var(--line-firm);padding:0 4px;
+}
+input:focus,select:focus{outline:none;border-bottom:2px solid var(--accent);background:#fbfdff}
+input::placeholder{color:var(--faint)}
+input.bad{border-bottom:2px solid var(--stop);background:var(--stop-bg)}
+input.good{border-bottom-color:var(--ok)}
+input:disabled,select:disabled{background:#f4f6f8;color:var(--faint);border-bottom-style:dotted}
+
+.hint{font-size:11px;color:var(--faint);min-height:14px}
+.hint.err{color:var(--stop)}
+.hint.ok{color:var(--ok)}
+
+.row2{display:grid;grid-template-columns:1fr 74px 96px;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.checks{display:flex;flex-wrap:wrap;gap:14px;font-size:var(--fs-sm);color:var(--muted);margin:2px 0 14px}
+.checks label{display:flex;align-items:center;gap:5px}
+
+/* contacts */
+.contact{border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+.contact .ch{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.contact .ch b{font-size:var(--fs-sm)}
+.contact .ch .spacer{flex:1}
+button.link{background:none;border:0;font:inherit;font-size:var(--fs-sm);color:var(--accent);cursor:pointer;padding:0}
+button.link:hover{text-decoration:underline}
+
+/* aside: completeness */
+.meter{margin-bottom:16px}
+.meter .bar{height:6px;background:var(--line);position:relative;margin:8px 0 6px}
+.meter .bar i{position:absolute;inset:0 auto 0 0;background:var(--ok);transition:width .2s}
+.meter .n{font-size:var(--fs-sm);color:var(--muted)}
+.meter .n b{color:var(--ink)}
+
+ul.gaps{list-style:none;font-size:var(--fs-sm)}
+ul.gaps li{padding:5px 0;border-bottom:1px solid var(--line);color:var(--muted);display:flex;gap:8px}
+ul.gaps li::before{content:"○";color:var(--faint)}
+ul.gaps li.have{color:var(--faint)}
+ul.gaps li.have::before{content:"●";color:var(--ok)}
+
+.flag{padding:10px 12px;font-size:var(--fs-sm);margin-bottom:14px;display:none}
+.flag.on{display:block}
+.flag.dup{background:var(--warn-bg);border-left:3px solid var(--warn);color:var(--warn)}
+
+/* footer */
+.foot{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 20px;background:var(--page)}
+.foot .spacer{flex:1}
+.foot .note{font-size:var(--fs-sm);color:var(--muted)}
+button.solid{height:32px;padding:0 18px;font:inherit;font-size:var(--fs-sm);background:var(--accent);
+  color:#fff;border:0;cursor:pointer}
+button.solid:hover{background:#0f3f66}
+button.plain{height:32px;padding:0 14px;font:inherit;font-size:var(--fs-sm);color:var(--ink);
+  background:transparent;border:1px solid var(--line-firm);cursor:pointer}
+button.plain:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>New client</h1>
+  <span class="sub">Nothing is saved until you create the record</span>
+  <span class="spacer"></span>
+  <span class="sub">Entered by rgurung &middot; 8 Sep 2026</span>
+</div>
+
+<div class="body">
+<div class="cols">
+
+  <!-- 1 -->
+  <section class="col">
+    <h2>Client</h2>
+
+    <div class="f">
+      <label for="name">Legal name <span class="req">required</span></label>
+      <input id="name" type="text" placeholder="As registered with the state" autofocus>
+      <span class="hint" id="name-h"></span>
+    </div>
+
+    <div class="f">
+      <label for="dba">Doing business as <span class="opt">optional</span></label>
+      <input id="dba" type="text">
+      <span class="hint"></span>
+    </div>
+
+    <div class="f">
+      <label for="type">Entity type <span class="req">required</span></label>
+      <select id="type">
+        <option value="">Select…</option>
+        <option>C-Corp</option><option>S-Corp</option><option>LLC</option>
+        <option>Partnership</option><option>Sole proprietor</option><option>Individual</option>
+      </select>
+      <span class="hint"></span>
+    </div>
+
+    <div class="f">
+      <label for="a1">Address <span class="req">required</span></label>
+      <input id="a1" type="text" placeholder="Street">
+      <span class="hint"></span>
+    </div>
+    <div class="f">
+      <label for="a2">Line 2 <span class="opt">optional</span></label>
+      <input id="a2" type="text">
+      <span class="hint"></span>
+    </div>
+
+    <div class="f">
+      <label>City, state, ZIP <span class="req">required</span></label>
+      <div class="row2">
+        <input id="city" type="text" placeholder="City">
+        <select id="st"><option value="">St</option><option>NC</option><option>VA</option><option>SC</option></select>
+        <input id="zip" type="text" placeholder="ZIP" maxlength="5">
+      </div>
+      <span class="hint" id="zip-h"></span>
+    </div>
+
+    <div class="f">
+      <label for="county">County <span class="req">required</span></label>
+      <input id="county" type="text" placeholder="Determines sales tax rates">
+      <span class="hint">Sets the county, city, and special rates used in monthly filing.</span>
+    </div>
+
+    <div class="f two">
+      <div>
+        <label for="phone">Phone</label>
+        <input id="phone" type="text" placeholder="(336) 555-0100">
+      </div>
+      <div>
+        <label for="email">Email</label>
+        <input id="email" type="text">
+      </div>
+    </div>
+
+    <h2>Services</h2>
+    <div class="checks">
+      <label><input type="checkbox" id="s-st"> Sales tax</label>
+      <label><input type="checkbox"> Payroll</label>
+      <label><input type="checkbox"> Taxes / other</label>
+      <label><input type="checkbox"> Cigarette / tobacco</label>
+    </div>
+    <div class="f">
+      <label for="start">Start date <span class="req">required</span></label>
+      <input id="start" type="text" placeholder="DD MMM YYYY" style="max-width:180px">
+      <span class="hint"></span>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="col">
+    <h2>Registrations</h2>
+
+    <div class="f">
+      <label for="fed">Federal ID (EIN)</label>
+      <input id="fed" type="text" placeholder="00-0000000" maxlength="10">
+      <span class="hint" id="fed-h">Nine digits. Leave blank if the application is still pending.</span>
+    </div>
+
+    <div class="f two">
+      <div>
+        <label for="sid">State ID</label>
+        <input id="sid" type="text">
+      </div>
+      <div>
+        <label for="strate">Sales tax rate</label>
+        <input id="strate" type="text" placeholder="0.0675">
+      </div>
+    </div>
+
+    <div class="f two">
+      <div>
+        <label for="sos">SOS ID</label>
+        <input id="sos" type="text">
+      </div>
+      <div>
+        <label for="wh">Withholding ID</label>
+        <input id="wh" type="text">
+      </div>
+    </div>
+
+    <div class="f two">
+      <div>
+        <label for="unmp">Unemployment ID</label>
+        <input id="unmp" type="text">
+      </div>
+      <div>
+        <label for="unmprate">Unemployment rate</label>
+        <input id="unmprate" type="text" placeholder="0.0120">
+      </div>
+    </div>
+
+    <h2>Banking</h2>
+    <div class="f">
+      <label for="bank">Bank name</label>
+      <input id="bank" type="text">
+      <span class="hint"></span>
+    </div>
+    <div class="f two">
+      <div>
+        <label for="rt">Routing number</label>
+        <input id="rt" type="text" maxlength="9" placeholder="9 digits">
+        <span class="hint" id="rt-h"></span>
+      </div>
+      <div>
+        <label for="acct">Account number</label>
+        <input id="acct" type="text">
+        <span class="hint">Masked once saved.</span>
+      </div>
+    </div>
+
+    <h2>Files</h2>
+    <div class="f">
+      <label for="path">Document folder <span class="opt">optional</span></label>
+      <input id="path" type="text" placeholder="Created automatically if left blank">
+      <span class="hint"></span>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="col">
+    <h2>Contacts</h2>
+    <div id="contacts">
+      <div class="contact">
+        <div class="ch"><b>Contact 1</b><span class="spacer"></span></div>
+        <div class="f">
+          <label>Name</label>
+          <input type="text">
+        </div>
+        <div class="f two">
+          <div><label>Email</label><input type="text"></div>
+          <div><label>Phone</label><input type="text"></div>
+        </div>
+        <div class="f two">
+          <div><label>SSN</label><input type="text" placeholder="000-00-0000"></div>
+          <div><label>Date of birth</label><input type="text" placeholder="DD MMM YYYY"></div>
+        </div>
+        <div class="f two">
+          <div><label>Driver's licence</label><input type="text"></div>
+          <div><label>Ownership %</label><input type="text" placeholder="0"></div>
+        </div>
+        <div class="checks" style="margin-bottom:0">
+          <label><input type="checkbox"> Is an owner</label>
+          <label><input type="checkbox" checked> Receives email</label>
+        </div>
+      </div>
+    </div>
+    <button class="link" id="addc">+ Add another contact</button>
+
+    <h2>Billing</h2>
+    <div class="f">
+      <label for="bcat">Category</label>
+      <select id="bcat"><option value="">Select…</option><option>Monthly fee</option><option>Quarterly</option><option>Annual</option><option>Per filing</option></select>
+      <span class="hint"></span>
+    </div>
+    <div class="f two">
+      <div><label for="amt">Amount</label><input id="amt" type="text" placeholder="0.00"></div>
+      <div><label for="bdate">Date</label><input id="bdate" type="text" placeholder="DD MMM YYYY"></div>
+    </div>
+    <div class="f">
+      <label for="bnotes">Notes</label>
+      <input id="bnotes" type="text">
+      <span class="hint"></span>
+    </div>
+    <div class="checks"><label><input type="checkbox" id="paid"> Already paid</label></div>
+    <div class="f two">
+      <div><label for="pdate">Paid date</label><input id="pdate" type="text" disabled></div>
+      <div><label for="mop">Method</label><select id="mop" disabled><option>ACH</option><option>Check</option><option>Card</option></select></div>
+    </div>
+    <div class="f">
+      <label for="payee">Payee account</label>
+      <select id="payee" disabled><option>Operating</option><option>Trust</option></select>
+      <span class="hint">Enabled once the payment is marked paid.</span>
+    </div>
+  </section>
+
+  <!-- aside -->
+  <aside class="col aside">
+    <div class="flag dup" id="dup">
+      <b>Possible duplicate.</b> A client with a similar name already exists — Riverton Hardware &amp; Supply LLC, client 402. Check before creating.
+    </div>
+
+    <h2 style="margin-top:0">Record completeness</h2>
+    <div class="meter">
+      <div class="bar"><i id="pbar" style="width:0%"></i></div>
+      <div class="n"><b id="pn">0</b> of 12 key fields</div>
+    </div>
+
+    <ul class="gaps" id="gaps">
+      <li data-k="name">Legal name</li>
+      <li data-k="type">Entity type</li>
+      <li data-k="a1">Address</li>
+      <li data-k="city">City</li>
+      <li data-k="zip">ZIP</li>
+      <li data-k="county">County</li>
+      <li data-k="start">Start date</li>
+      <li data-k="fed">Federal ID</li>
+      <li data-k="sid">State ID</li>
+      <li data-k="bank">Bank name</li>
+      <li data-k="rt">Routing number</li>
+      <li data-k="acct">Account number</li>
+    </ul>
+
+    <p class="hint" style="margin-top:14px;line-height:1.5">
+      A record can be created with gaps — most clients arrive before their IDs do.
+      Anything still missing shows on the client and feeds the missing-information worklist.
+    </p>
+  </aside>
+
+</div>
+</div>
+
+<div class="foot">
+  <span class="note" id="foot-note">3 required fields still empty</span>
+  <span class="spacer"></span>
+  <button class="plain">Cancel</button>
+  <button class="solid" id="create">Create client</button>
+</div>
+
+<script>
+const KEYS=['name','type','a1','city','zip','county','start','fed','sid','bank','rt','acct'];
+const REQ=['name','type','a1','city','zip','county','start'];
+
+function refresh(){
+  let n=0;
+  KEYS.forEach(k=>{
+    const el=document.getElementById(k);
+    const has=el && el.value.trim()!=='';
+    if(has)n++;
+    const li=document.querySelector(`.gaps li[data-k="${k}"]`);
+    if(li)li.className=has?'have':'';
+  });
+  document.getElementById('pn').textContent=n;
+  document.getElementById('pbar').style.width=(n/KEYS.length*100)+'%';
+  const missing=REQ.filter(k=>!document.getElementById(k).value.trim()).length;
+  document.getElementById('foot-note').textContent=
+    missing?missing+' required field'+(missing>1?'s':'')+' still empty':'Ready to create';
+  document.getElementById('create').style.opacity=missing?.55:1;
+}
+
+document.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',refresh));
+
+/* EIN format */
+const fed=document.getElementById('fed'),fedh=document.getElementById('fed-h');
+fed.addEventListener('input',()=>{
+  let v=fed.value.replace(/\D/g,'').slice(0,9);
+  fed.value=v.length>2?v.slice(0,2)+'-'+v.slice(2):v;
+  if(!v){fed.className='';fedh.className='hint';fedh.textContent='Nine digits. Leave blank if the application is still pending.';}
+  else if(v.length<9){fed.className='bad';fedh.className='hint err';fedh.textContent='Needs nine digits.';}
+  else{fed.className='good';fedh.className='hint ok';fedh.textContent='Valid format.';}
+});
+
+/* routing checksum — real ABA rule */
+const rt=document.getElementById('rt'),rth=document.getElementById('rt-h');
+rt.addEventListener('input',()=>{
+  const v=rt.value.replace(/\D/g,'').slice(0,9); rt.value=v;
+  if(!v){rt.className='';rth.className='hint';rth.textContent='';return}
+  if(v.length<9){rt.className='bad';rth.className='hint err';rth.textContent='Needs nine digits.';return}
+  const d=[...v].map(Number);
+  const sum=3*(d[0]+d[3]+d[6])+7*(d[1]+d[4]+d[7])+(d[2]+d[5]+d[8]);
+  const ok=sum%10===0;
+  rt.className=ok?'good':'bad';
+  rth.className='hint '+(ok?'ok':'err');
+  rth.textContent=ok?'Checksum passes.':'Checksum fails — check the digits.';
+});
+
+/* ZIP */
+const zip=document.getElementById('zip'),zh=document.getElementById('zip-h');
+zip.addEventListener('input',()=>{
+  const v=zip.value.replace(/\D/g,'').slice(0,5); zip.value=v;
+  zh.className='hint'+(v&&v.length<5?' err':'');
+  zh.textContent=v&&v.length<5?'Five digits.':'';
+});
+
+/* duplicate check */
+const name=document.getElementById('name');
+name.addEventListener('input',()=>{
+  const hit=/river|hardware|supply/i.test(name.value)&&name.value.length>4;
+  document.getElementById('dup').classList.toggle('on',hit);
+});
+
+/* billing conditionals */
+const paid=document.getElementById('paid');
+paid.addEventListener('change',()=>{
+  ['pdate','mop','payee'].forEach(id=>document.getElementById(id).disabled=!paid.checked);
+});
+
+/* more contacts */
+let n=1;
+document.getElementById('addc').onclick=()=>{
+  n++;
+  const first=document.querySelector('.contact');
+  const c=first.cloneNode(true);
+  c.querySelectorAll('input').forEach(i=>{if(i.type==='checkbox')i.checked=i.parentElement.textContent.includes('email');else i.value=''});
+  c.querySelector('.ch').innerHTML='<b>Contact '+n+'</b><span class="spacer"></span><button class="link rm">Remove</button>';
+  c.querySelector('.rm').onclick=()=>c.remove();
+  document.getElementById('contacts').appendChild(c);
+};
+
+refresh();
+</script>
+</body>
+</html>

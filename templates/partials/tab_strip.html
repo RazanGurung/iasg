@@ -1,0 +1,10 @@
+{# expects: tabs (list of {key, label, url}), active (key of the current tab), target (css selector for the panel) #}
+<div class="tab-strip" role="tablist">
+  {% for tab in tabs %}
+  <button type="button" class="tab" role="tab"
+          aria-selected="{% if tab.key == active %}true{% else %}false{% endif %}"
+          hx-get="{{ tab.url }}"
+          hx-target="{{ target }}"
+          hx-swap="innerHTML">{{ tab.label }}</button>
+  {% endfor %}
+</div>

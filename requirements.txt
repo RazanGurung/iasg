@@ -1,0 +1,19 @@
+Django==5.1.*
+mssql-django==1.8.*
+pyodbc==5.*
+python-dotenv==1.*
+django-htmx==1.*
+WeasyPrint==63.*
+cryptography==43.*
+waitress==3.*
+whitenoise==6.*   # static files on the free-tier demo host, not used in prod (IIS serves those)
+
+# optional, add when the relevant module starts
+# playwright==1.*        # portal automation (server-side only)
+# pywebview==5.*         # native window, only if Edge app mode is insufficient
+# pyinstaller==6.*       # packaging, --onedir only
+
+# dev
+pytest==8.*
+pytest-django==4.*
+ruff==0.*

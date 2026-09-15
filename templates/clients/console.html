@@ -1,0 +1,947 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} — IASG MIS{% endblock %}
+
+{% block extra_head %}
+<style>
+/* Page-specific layout only — tokens/components come from static/css/app.css.
+   Ported from docs/mockups/client-console-v2.html. */
+.titlebar{height:26px;flex:none;display:flex;align-items:center;justify-content:center;
+  font-size:var(--fs-sm);font-weight:600;background:var(--surface);border-bottom:1px solid var(--line-firm)}
+.console-header{flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:0 24px;
+  padding:8px 12px 6px;border-bottom:1px solid var(--line-firm);overflow:hidden}
+.console-header .field-row{grid-template-columns:150px minmax(0,1fr)}
+.console-header .col:not(:first-child){border-left:1px solid var(--line-firm);padding-left:20px}
+.console-header .col{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.frow-group{display:flex;align-items:center;gap:10px;margin-bottom:4px;min-height:var(--row);min-width:0}
+.frow-group[hidden]{display:none}
+.frow-group > label{font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;
+  flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.frow-group .lbl-wide{flex:0 1 150px;min-width:60px}
+.frow-group .box{flex:1;min-width:0}
+.frow-group .box.fixed{flex:0 1 auto;min-width:32px}
+.chk{display:flex;align-items:center;gap:5px;font-size:var(--fs-sm);color:var(--muted);white-space:nowrap;flex:0 0 auto}
+.chk input{margin:0}
+/* Checkboxes and selects stay un-disabled (disabled inputs don't submit) —
+   instead the whole .client-fields section is locked against clicks until
+   Edit is on. `readonly` has no effect on <select>, hence this. */
+.client-fields.locked input[type=checkbox],
+.client-fields.locked select{pointer-events:none;background:var(--surface)}
+button.iconbtn{width:24px;height:24px;padding:0;font-size:13px;flex:0 0 auto;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#f6faff,#e2ebf9);
+  border:1px solid #b7cceb;border-radius:5px;color:#4a5568;
+  box-shadow:0 1px 2px rgba(20,30,60,.14), inset 0 1px 0 rgba(255,255,255,.7);
+  transition:background .12s ease, border-color .12s ease, color .12s ease}
+button.iconbtn:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+button.iconbtn.danger{background:linear-gradient(180deg,#ec6a5e,#dc4437);
+  border-color:#b6362c;color:#fff;border-radius:50%;
+  box-shadow:0 1px 3px rgba(180,40,30,.35), inset 0 1px 0 rgba(255,255,255,.35)}
+button.iconbtn.danger:hover{background:linear-gradient(180deg,#dc4437,#c0392b)}
+button.link-inline,span.link-inline{background:none;border:0;color:var(--accent);font-size:var(--fs-sm);
+  padding:0;height:auto;flex:0 0 auto}
+button.link-inline:hover{text-decoration:underline}
+span.link-inline{text-decoration:underline}
+.iconrow{display:flex;gap:5px;flex:0 0 auto}
+.divider{width:2px;align-self:stretch;background:#333;margin:2px 3px;flex:0 0 auto}
+.mini-grid{flex:0 0 66px;height:66px;overflow:auto;border:1px solid var(--line-firm);margin-bottom:5px}
+.mini-grid table.grid thead th{position:sticky;top:0}
+/* while the detail form is collapsed, let the contacts list fill the column */
+.col:has(#contact-detail[hidden]) .mini-grid{flex:1 1 auto;height:auto}
+.cmdrow{flex:none;height:30px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--line-firm)}
+.panel{flex:1;min-height:0;display:flex;flex-direction:column;padding:6px 12px 8px}
+.panelhead{flex:none;display:flex;align-items:center;gap:8px;padding:2px 0 6px;font-size:var(--fs-sm)}
+.scroll{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line-firm);display:flex;flex-direction:column}
+.tabs-nav{display:flex;align-items:stretch;background:var(--page);border-bottom:1px solid var(--line-firm);padding:2px 4px 0}
+.tabs-nav a{height:26px;padding:0 12px;margin-right:-1px;font-size:var(--fs-sm);color:var(--ink);
+  background:var(--tab-bg);border:1px solid var(--tab-border);text-decoration:none;
+  display:flex;align-items:center;white-space:nowrap}
+.tabs-nav a.active{background:var(--tab-active-bg);font-weight:600;border-bottom-color:var(--tab-active-bg);position:relative;z-index:1}
+#notes-grid{flex:none}
+/* The add/edit panel's margin-top:auto only pushes it to the bottom of the
+   dashboard (flush above the status bar) if its own parent form is also a
+   flex column filling the remaining .scroll space — plain <form> block flow
+   otherwise leaves it sitting right under the grid with dead space below. */
+#note-form, #task-form, #cred-form{flex:1;min-height:0;display:flex;flex-direction:column}
+.note-add{flex:none;padding:12px 4px 4px;margin-top:auto;border-top:1px solid var(--line-firm)}
+.note-add[hidden]{display:none}
+.note-add textarea.box{height:60px;flex:1;padding:6px;font:inherit;resize:vertical}
+.tab-buttons{padding:16px 20px}
+.tab-buttons h3{font-size:var(--fs-sm);font-weight:600;color:var(--muted);margin:0 0 8px;
+  text-transform:uppercase;letter-spacing:.03em}
+.tab-buttons button.action,.tab-buttons a.action{display:block;height:28px;padding:0 14px;margin-bottom:8px;
+  line-height:28px;font:inherit;font-size:var(--fs-sm);background:var(--accent-bg);
+  border:1px solid var(--tab-border);color:var(--ink);cursor:default;text-align:left;
+  text-decoration:none;width:fit-content}
+.tab-buttons button.action:hover,.tab-buttons a.action:hover{border-color:var(--accent);cursor:pointer}
+.date-range-box{border:1px solid var(--line-firm);padding:10px;margin-bottom:16px;width:260px}
+.date-range-box .drow{display:flex;align-items:center;gap:8px;margin-bottom:10px;
+  font-size:var(--fs-sm);color:var(--muted)}
+.fin-grid{display:grid;grid-template-columns:1fr 1fr}
+.fn-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 32px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="titlebar">[IASG_MIS] - [Control Console]</div>
+
+<div class="console-header">
+
+  <form id="client-edit-form" method="post" action="{% url 'client_edit' client.id %}" style="display:contents">
+  {% csrf_token %}
+  <input type="hidden" name="tab" value="{{ active_tab }}">
+  <section class="col client-fields locked">
+    <div class="frow-group">
+      <label>Client ID:</label><input class="box fixed" style="width:52px" value="{{ client.id }}" readonly>
+      <label>Type:</label>
+      <select class="box fixed" name="type" data-editable style="width:104px">
+        <option value=""{% if not client.type %} selected{% endif %}>Select…</option>
+        <option{% if client.type == "C-Corp" %} selected{% endif %}>C-Corp</option>
+        <option{% if client.type == "S-Corp" %} selected{% endif %}>S-Corp</option>
+        <option{% if client.type == "LLC" %} selected{% endif %}>LLC</option>
+        <option{% if client.type == "Partnership" %} selected{% endif %}>Partnership</option>
+        <option{% if client.type == "Sole proprietor" %} selected{% endif %}>Sole proprietor</option>
+        <option{% if client.type == "Individual" %} selected{% endif %}>Individual</option>
+      </select>
+      <button class="iconbtn" type="button" title="Summary" hx-get="{% url 'client_summary' client.id %}" hx-target="#modal-root" hx-swap="innerHTML">&Sigma;</button>
+      <span class="spacer" style="flex:1"></span>
+      <div class="chk"><input type="checkbox" name="active" data-editable {% if client.active %}checked{% endif %}> Active</div>
+    </div>
+    <div class="field-row"><label>Name:</label><input class="box" name="name" data-editable id="cf-name" value="{{ client.name }}" readonly></div>
+    <div class="field-row"><label>DBA:</label><input class="box" name="dba" data-editable value="{{ client.dba }}" readonly></div>
+    <div class="field-row"><label>Address line 1:</label><input class="box" name="address1" data-editable value="{{ client.address1 }}" readonly></div>
+    <div class="field-row"><label>Address line 2:</label><input class="box" name="address2" data-editable value="{{ client.address2 }}" readonly></div>
+    <div class="frow-group">
+      <label class="lbl-wide">City / state / ZIP:</label>
+      <input class="box" name="city" data-editable style="flex:2" value="{{ client.city }}" readonly>
+      <input class="box fixed" name="state" data-editable style="width:54px" value="{{ client.state }}" readonly>
+      <input class="box fixed" name="zip" data-editable style="width:66px" value="{{ client.zip }}" readonly>
+    </div>
+    <div class="frow-group">
+      <label class="lbl-wide" style="display:flex;align-items:center;gap:4px">
+        County:<button class="link-inline" type="button">Lookup</button>
+      </label>
+      <input class="box" name="county" data-editable style="flex:1" value="{{ client.county }}" readonly>
+      <label style="margin-left:8px">Phone:</label>
+      <input class="box fixed" name="phone" data-editable style="width:132px" value="{{ client.phone }}" readonly>
+    </div>
+    <div class="frow-group">
+      <label class="lbl-wide">Email:</label>
+      <input class="box" name="email" data-editable style="flex:1" value="{{ client.email }}" readonly>
+      <button class="iconbtn" type="button" title="Compose"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="10" rx="1"/><path d="M2 4l6 5 6-5"/></svg></button>
+      <button class="iconbtn" type="button" title="Open folder"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4h4l1.5 2h7v7h-12.5z"/></svg></button>
+    </div>
+  </section>
+
+  <section class="col client-fields locked">
+    <div class="frow-group">
+      <label class="lbl-wide">Federal ID / start dt:</label>
+      <input class="box" name="federal_id" data-editable style="flex:1" value="{{ client.federal_id }}" readonly>
+      <input class="box fixed" name="start_date" data-editable style="width:96px" value="{{ client.start_date }}" readonly>
+    </div>
+    <div class="frow-group">
+      <label class="lbl-wide">State ID / ST rate:</label>
+      <input class="box" name="state_id" data-editable style="flex:1" value="{{ client.state_id }}" readonly>
+      <input class="box fixed num" name="st_rate" data-editable style="width:96px" value="{{ client.st_rate }}" readonly>
+    </div>
+    <div class="frow-group">
+      <label class="lbl-wide">Withholding / SOS ID:</label>
+      <input class="box" name="withholding_sos_id" data-editable style="flex:1" value="{{ client.withholding_sos_id }}" readonly>
+      <input class="box fixed" name="sos_id_value" data-editable style="width:96px" value="{{ client.sos_id_value }}" readonly>
+    </div>
+    <div class="frow-group">
+      <label class="lbl-wide">UNMP ID / rate:</label>
+      <input class="box" name="unmp_id" data-editable style="flex:1" value="{{ client.unmp_id }}" readonly>
+      <input class="box fixed num" name="unmp_rate" data-editable style="width:96px" value="{{ client.unmp_rate }}" readonly>
+    </div>
+    <div class="field-row"><label>Bank name:</label><input class="box" name="bank_name" data-editable value="{{ client.bank_name }}" readonly></div>
+    <div class="frow-group">
+      <label class="lbl-wide">Routing / account:</label>
+      {% include "partials/protected_value.html" with field_id="routing" masked=client.routing_masked reveal_url=reveal_urls.routing style="flex:1" %}
+      {% include "partials/protected_value.html" with field_id="account" masked=client.account_masked reveal_url=reveal_urls.account style="width:140px;flex:0 0 auto" %}
+    </div>
+    <div class="frow-group">
+      <label class="lbl-wide">Services:</label>
+      <div class="chk"><input type="checkbox" name="sales_tax" data-editable {% if client.sales_tax %}checked{% endif %}> Sales tax</div>
+      <div class="chk"><input type="checkbox" name="payroll" data-editable {% if client.payroll %}checked{% endif %}> Payroll</div>
+      <div class="chk"><input type="checkbox" name="taxes_other" data-editable {% if client.taxes_other %}checked{% endif %}> Taxes / other</div>
+    </div>
+    <div class="frow-group">
+      <div class="chk"><input type="checkbox" name="closed" data-editable {% if client.closed %}checked{% endif %}> Closed</div>
+      <label>Date closed:</label>
+      <input class="box fixed" name="date_closed" data-editable style="width:96px" value="{{ client.date_closed }}" readonly>
+      <span class="spacer" style="flex:1"></span>
+      <div class="chk"><input type="checkbox" name="cig_tob" data-editable {% if client.cig_tob %}checked{% endif %}> Cig / tobacco / OTT</div>
+    </div>
+  </section>
+  </form>
+
+  <section class="col">
+    <div class="frow-group">
+      <label style="width:64px">Contacts:</label>
+      <select class="box" style="flex:1" onchange="location.href='?tab={{ active_tab }}&amp;contact='+this.value">
+        {% for c in contacts %}
+        <option value="{{ c.id }}"{% if primary_contact and c.id == primary_contact.id %} selected{% endif %}>{{ c.name }}</option>
+        {% empty %}
+        <option value="">No contacts</option>
+        {% endfor %}
+      </select>
+      <span class="iconrow">
+        <button class="iconbtn" type="button" title="Add contact" onclick="openContactAdd()">+</button>
+        <button class="iconbtn" type="button" title="Edit contact" onclick="openContactEdit()"{% if not primary_contact %} disabled{% endif %}><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+        <button class="iconbtn" type="button" title="Remove contact"{% if not primary_contact %} disabled{% endif %}
+                onclick="confirmDeleteForm('contact-delete-form', 'Remove this contact?')">&#10005;</button>
+      </span>
+    </div>
+    <div class="mini-grid">
+      <table class="grid">
+        <thead><tr><th>Name</th><th>Email</th><th>Rcpt</th><th>Owner</th><th>Phone</th><th>Active</th></tr></thead>
+        <tbody>
+          {% for c in contacts %}
+          <tr onclick="contactRowClick({{ c.id }})" ondblclick="contactRowDblClick({{ c.id }})"{% if primary_contact and c.id == primary_contact.id %} aria-selected="true"{% endif %}>
+            <td>{{ c.name }}</td><td>{{ c.email }}</td><td>{{ c.receives_email|yesno:"Yes,No" }}</td>
+            <td>{{ c.is_owner|yesno:"Yes,No" }}</td><td class="num">{{ c.phone }}</td><td>{{ c.active|yesno:"Yes,No" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="empty-state">No contacts yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if primary_contact %}
+    <form id="contact-delete-form" method="post" action="{% url 'contact_delete' client.id primary_contact.id %}" style="display:none">
+      {% csrf_token %}<input type="hidden" name="tab" value="{{ active_tab }}">
+    </form>
+    {% endif %}
+    <form id="contact-form" method="post" action="{% url 'contact_save' client.id %}">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="{{ active_tab }}">
+      <input type="hidden" name="contact_id" id="cd-id" value="{% if primary_contact %}{{ primary_contact.id }}{% endif %}">
+      <div id="contact-detail" hidden>
+        <div class="field-row"><label>Contact name:</label><input class="box" name="name" id="cd-name" value="{% if primary_contact %}{{ primary_contact.name }}{% endif %}" readonly></div>
+        <div class="frow-group">
+          <label style="width:64px">Email:</label>
+          <input class="box" name="email" id="cd-email" style="flex:1" value="{% if primary_contact %}{{ primary_contact.email }}{% endif %}" readonly>
+          <label style="margin-left:8px">Phone:</label>
+          <input class="box fixed" name="phone" id="cd-phone" style="width:122px" value="{% if primary_contact %}{{ primary_contact.phone }}{% endif %}" readonly>
+        </div>
+        <div class="frow-group" id="contact-ssn-view">
+          <label style="width:64px">SSN:</label>
+          {% include "partials/protected_value.html" with field_id="ssn" masked=primary_contact.ssn_masked reveal_url=reveal_urls.ssn style="width:130px;flex:0 0 auto" %}
+          <label style="margin-left:6px">DL:</label>
+          {% include "partials/protected_value.html" with field_id="dl" masked=primary_contact.dl_masked reveal_url=reveal_urls.dl style="width:110px;flex:0 0 auto" %}
+          <label style="margin-left:6px">DOB:</label>
+          {% include "partials/protected_value.html" with field_id="dob" masked=primary_contact.dob_masked reveal_url=reveal_urls.dob style="width:100px;flex:0 0 auto" %}
+        </div>
+        <div class="frow-group" id="contact-ssn-add" hidden>
+          <label style="width:64px">SSN:</label>
+          <input class="box" name="ssn" id="cd-ssn" style="width:130px;flex:0 0 auto" placeholder="000-00-0000">
+          <label style="margin-left:6px">DL:</label>
+          <input class="box" name="dl" id="cd-dl" style="width:110px;flex:0 0 auto">
+          <label style="margin-left:6px">DOB:</label>
+          <input class="box" name="dob" id="cd-dob" style="width:100px;flex:0 0 auto" placeholder="DD MMM YYYY">
+        </div>
+        <div class="frow-group">
+          <div class="chk"><input type="checkbox" name="receives_email" id="cd-rcpt" {% if primary_contact.receives_email %}checked{% endif %}> Receives email</div>
+          <div class="chk"><input type="checkbox" name="is_owner" id="cd-owner" {% if primary_contact.is_owner %}checked{% endif %}> Is owner</div>
+          <label>%:</label><input class="box fixed" name="pct" id="cd-pct" style="width:48px" value="{% if primary_contact %}{{ primary_contact.pct }}{% endif %}" readonly>
+          <span class="spacer" style="flex:1"></span>
+          <button class="iconbtn" type="submit" title="Save contact"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+          <button class="iconbtn danger" type="button" title="Cancel" onclick="closeContactDetail()">&#10005;</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+</div>
+
+<div class="cmdrow">
+  <label>Name / phone search:</label>
+  <select class="box" style="width:260px" onchange="if(this.value) location.href='{% url 'client_detail' 0 %}'.replace('0', this.value)">
+    <option value="">— jump to client —</option>
+    {% for c in all_clients %}<option value="{{ c.id }}"{% if c.id == client.id %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+  </select>
+  <span class="divider"></span>
+  <select class="box" style="width:180px" onchange="if(this.value) location.href='{% url 'client_detail' 0 %}'.replace('0', this.value)">
+    <option value="">— by phone —</option>
+    {% for c in all_clients %}{% if c.phone %}<option value="{{ c.id }}"{% if c.id == client.id %} selected{% endif %}>{{ c.phone }}</option>{% endif %}{% endfor %}
+  </select>
+  <span class="divider"></span>
+  <span class="iconrow">
+    <a class="iconbtn" title="First" href="{% url 'client_detail' nav.first %}">&#9198;</a>
+    <a class="iconbtn" title="Previous" href="{% url 'client_detail' nav.prev %}">&#9664;</a>
+    <a class="iconbtn" title="Next" href="{% url 'client_detail' nav.next %}">&#9654;</a>
+    <a class="iconbtn" title="Last" href="{% url 'client_detail' nav.last %}">&#9197;</a>
+  </span>
+  <span class="divider"></span>
+  <span class="iconrow">
+    <button class="iconbtn" title="Add client"
+            hx-get="{% url 'client_new' %}" hx-target="#modal-root" hx-swap="innerHTML">+</button>
+    <button class="iconbtn" type="button" title="Edit client" onclick="openClientEdit()"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+    <button class="iconbtn" type="button" title="Save" onclick="confirmSaveClient()"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+    <button class="iconbtn danger" type="button" title="Cancel" onclick="cancelClientEdit()">&#10005;</button>
+  </span>
+  <span class="spacer" style="flex:1"></span>
+</div>
+
+<nav class="tabs-nav">
+  {% for t in tabs %}
+  <a href="?tab={{ t.key }}" class="{% if t.key == active_tab %}active{% endif %}">{{ t.label }}</a>
+  {% endfor %}
+</nav>
+
+<div class="panel">
+  {% if active_tab == "notes" %}
+    <div class="panelhead">
+      <b>{{ active_tab_label }} :</b>
+      <span class="spacer" style="flex:1"></span>
+      <span class="iconrow">
+        <button class="iconbtn" type="button" title="Add" onclick="openNoteAdd()">+</button>
+        <button class="iconbtn" type="button" id="note-edit-btn" title="Edit" onclick="editSelectedNote()" disabled><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+        <button class="iconbtn danger" type="button" id="note-delete-btn" title="Delete" disabled
+                onclick="confirmDeleteForm('note-delete-form', 'Delete this note?')">&#10005;</button>
+      </span>
+    </div>
+    <div class="scroll">
+      <div id="notes-grid">
+        <table class="grid">
+          <thead><tr>{% for col in notes_columns %}<th>{{ col.label }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in notes_rows %}
+            <tr style="cursor:pointer" data-id="{{ row.id }}" data-category="{{ row.cells.0.value }}"
+                data-text="{{ row.cells.1.value }}"{% if row.selected %} aria-selected="true"{% endif %}
+                onclick="selectNoteRow(this)">
+              {% for cell in row.cells %}<td>{{ cell.value|default:"—" }}</td>{% endfor %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="{{ notes_columns|length }}" class="empty-state">No notes yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form id="note-delete-form" method="post" action="{% url 'note_delete' client.id 0 %}" style="display:none">
+        {% csrf_token %}
+      </form>
+      <form id="note-form" method="post" action="{% url 'note_save' client.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="note_id" id="note-id">
+        <div id="note-add" class="note-add" hidden>
+          <div class="frow-group">
+            <label style="width:70px">Category:</label>
+            <select class="box" name="category" id="note-category" style="flex:0 0 200px">
+              <option value="">Select…</option>
+              <option>General</option>
+              <option>Sales tax</option>
+              <option>Payroll</option>
+              <option>Taxes / other</option>
+              <option>Banking</option>
+            </select>
+            <span class="spacer" style="flex:1"></span>
+            <button class="iconbtn" type="submit" title="Save note"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+            <button class="iconbtn danger" type="button" title="Cancel" onclick="closeNoteAdd()">&#10005;</button>
+          </div>
+          <div class="frow-group" style="align-items:flex-start;margin-bottom:8px">
+            <label style="width:70px">Note:</label>
+            <textarea class="box textarea" name="text" id="note-text" placeholder="What happened?"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+
+  {% elif active_tab == "credentials" %}
+    <div class="panelhead">
+      <b>{{ active_tab_label }} :</b>
+      <span class="spacer" style="flex:1"></span>
+      <span class="iconrow">
+        <button class="iconbtn" type="button" title="Add" onclick="openCredAdd()">+</button>
+        <button class="iconbtn" type="button" id="cred-edit-btn" title="Edit" onclick="editSelectedCred()" disabled><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+        <button class="iconbtn danger" type="button" id="cred-delete-btn" title="Delete" disabled
+                onclick="confirmDeleteForm('cred-delete-form', 'Delete this credential?')">&#10005;</button>
+      </span>
+    </div>
+    <div class="scroll">
+      <div class="mini-grid" id="cred-grid" style="flex:0 0 140px;height:140px">
+        <table class="grid">
+          <thead>
+            <tr><th>Site/Desc</th><th>Username</th><th>Password</th><th>Description/Notes</th><th>Active</th></tr>
+          </thead>
+          <tbody>
+            {% for c in credentials %}
+            <tr style="cursor:pointer" data-id="{{ c.id }}" data-site="{{ c.site }}" data-username="{{ c.username }}"
+                data-notes="{{ c.notes }}" data-active="{{ c.active|yesno:'true,false' }}"
+                onclick="selectCredRow(this)">
+              <td>{{ c.site }}</td>
+              <td>{{ c.username }}</td>
+              <td>{% include "partials/protected_value.html" with field_id=c.field_id masked=c.password_masked reveal_url=c.reveal_url bare=True %}</td>
+              <td>{{ c.notes }}</td>
+              <td>{{ c.active|yesno:"Yes,No" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="empty-state">No credentials on file.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form id="cred-delete-form" method="post" action="{% url 'credential_delete' client.id 0 %}" style="display:none">
+        {% csrf_token %}
+      </form>
+      <form id="cred-form" method="post" action="{% url 'credential_save' client.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="credential_id" id="cred-id">
+        <div id="cred-detail" class="note-add" hidden>
+          <div class="field-row"><label>Site / URL:</label><input class="box" name="site" id="cred-site"></div>
+          <div class="frow-group">
+            <label style="width:100px">Username:</label>
+            <input class="box" name="username" id="cred-username" style="flex:1">
+            <label style="margin-left:8px">Password:</label>
+            <input class="box" name="password" id="cred-password" style="flex:1" placeholder="(unchanged)">
+            <label class="chk" style="margin-left:8px"><input type="checkbox" name="active" id="cred-active" checked> Active</label>
+          </div>
+          <div class="field-row"><label>Description:</label><input class="box" name="notes" id="cred-notes"></div>
+          <div class="frow-group" style="justify-content:flex-end">
+            <button class="iconbtn" type="submit" title="Save"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+            <button class="iconbtn danger" type="button" title="Cancel" onclick="closeCredDetail()">&#10005;</button>
+          </div>
+        </div>
+      </form>
+      <p class="empty-state" style="padding:6px 4px 0">Passwords are masked in the list and
+        revealed one at a time; every reveal is logged (docs/security.md).</p>
+    </div>
+
+  {% elif active_tab == "comms" %}
+    <div class="scroll">
+      {% include "partials/data_grid.html" with columns=comms_columns rows=comms_rows empty_message="No communications yet." %}
+    </div>
+
+  {% elif active_tab == "salestax" %}
+    <div class="panelhead">
+      <b>Monthly Liability History :</b>
+      <span class="spacer" style="flex:1"></span>
+      <button class="iconbtn" title="View"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></svg></button>
+      <button class="iconbtn" title="Export"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v8.5M5 7l3 3 3-3"/><path d="M2.5 11.5v2h11v-2"/></svg></button>
+    </div>
+    <div class="scroll">
+      {% include "partials/data_grid.html" with columns=salestax_columns rows=salestax_rows empty_message="No filing history yet." %}
+    </div>
+
+  {% elif active_tab == "tasks" %}
+    <div class="panelhead">
+      <b>{{ active_tab_label }} :</b>
+      {% include "partials/tab_filters.html" with filters=tasks_filters %}
+      <span class="spacer" style="flex:1"></span>
+      <span class="iconrow">
+        <button class="iconbtn" type="button" title="Add" onclick="openTaskAdd()">+</button>
+        <button class="iconbtn" type="button" id="task-edit-btn" title="Edit" onclick="editSelectedTask()" disabled><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+        <button class="iconbtn danger" type="button" id="task-delete-btn" title="Delete" disabled
+                onclick="confirmDeleteForm('task-delete-form', 'Delete this task?')">&#10005;</button>
+      </span>
+    </div>
+    <div class="scroll">
+      <div id="tasks-grid">
+        <table class="grid">
+          <thead><tr>{% for col in tasks_columns %}<th>{{ col.label }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in tasks_rows %}
+            <tr style="cursor:pointer" data-id="{{ row.id }}" data-task="{{ row.cells.0.value }}"
+                data-notes="{{ row.cells.1.value }}" data-assignee="{{ row.cells.4.value }}"
+                data-due="{{ row.cells.5.value }}" data-completed="{% if row.cells.6.value == 'Yes' %}true{% else %}false{% endif %}"
+                onclick="selectTaskRow(this)">
+              {% for cell in row.cells %}<td>{{ cell.value|default:"—" }}</td>{% endfor %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="{{ tasks_columns|length }}" class="empty-state">No tasks for this client.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form id="task-delete-form" method="post" action="{% url 'task_delete' client.id 0 %}" style="display:none">
+        {% csrf_token %}
+      </form>
+      <form id="task-form" method="post" action="{% url 'task_save' client.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="task_id" id="task-id">
+        <div id="task-add" class="note-add" hidden>
+          <div class="frow-group">
+            <label style="width:80px">Task:</label>
+            <input class="box" name="task" id="task-text" style="flex:1">
+            <label style="margin-left:8px">Assigned to:</label>
+            <input class="box fixed" name="assigned_to" id="task-assignee" style="width:110px">
+            <label style="margin-left:8px">Due:</label>
+            <input class="box fixed" name="due_date" id="task-due" style="width:100px" placeholder="DD MMM YYYY">
+            <label class="chk" style="margin-left:8px"><input type="checkbox" name="completed" id="task-completed"> Completed</label>
+            <button class="iconbtn" type="submit" title="Save task"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+            <button class="iconbtn danger" type="button" title="Cancel" onclick="document.getElementById('task-add').hidden=true">&#10005;</button>
+          </div>
+          <div class="frow-group" style="margin-bottom:8px">
+            <label style="width:80px">Notes:</label>
+            <input class="box" name="notes" id="task-notes" style="flex:1">
+          </div>
+        </div>
+      </form>
+    </div>
+
+  {% elif active_tab == "changes" %}
+    <div class="panelhead">
+      <b>Client Status Change Log (New Additions &amp; Closed Corporations) :</b>
+      {% include "partials/tab_filters.html" with filters=changes_filters %}
+      <span class="spacer" style="flex:1"></span>
+      <button class="iconbtn" type="button" title="Add" onclick="openChangeAdd()">+</button>
+    </div>
+    <div class="scroll">
+      <div>
+        <table class="grid">
+          <thead><tr>{% for col in changes_columns %}<th>{{ col.label }}</th>{% endfor %}<th></th></tr></thead>
+          <tbody>
+            {% for row in changes_rows %}
+            <tr>
+              {% for cell in row.cells %}<td>{{ cell.value|default:"—" }}</td>{% endfor %}
+              <td style="white-space:nowrap">
+                <form id="change-delete-form-{{ row.id }}" method="post" action="{% url 'change_delete' client.id row.id %}" style="display:inline">
+                  {% csrf_token %}
+                  <button class="iconbtn danger" type="button" title="Delete"
+                          onclick="confirmDeleteForm('change-delete-form-{{ row.id }}', 'Delete this status change?')">&#10005;</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="{{ changes_columns|length|add:1 }}" class="empty-state">No status changes for this client.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form id="change-form" method="post" action="{% url 'change_save' client.id %}">
+        {% csrf_token %}
+        <div id="change-add" class="note-add" hidden>
+          <div class="frow-group">
+            <label style="width:70px">Status:</label>
+            <select class="box fixed" name="status" style="width:110px">
+              <option>Addition</option><option>Closure</option>
+            </select>
+            <label style="margin-left:8px">Start:</label>
+            <input class="box fixed" name="start_date" style="width:100px" placeholder="DD MMM YYYY">
+            <label style="margin-left:8px">Close:</label>
+            <input class="box fixed" name="close_date" style="width:100px" placeholder="DD MMM YYYY">
+            <span class="spacer" style="flex:1"></span>
+            <button class="iconbtn" type="submit" title="Save"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M4.5 2.5v4h5v-4"/><rect x="4.5" y="9" width="5" height="4"/></svg></button>
+            <button class="iconbtn danger" type="button" title="Cancel" onclick="document.getElementById('change-add').hidden=true">&#10005;</button>
+          </div>
+          <div class="frow-group">
+            <label class="chk"><input type="checkbox" name="payroll"> Payroll</label>
+            <label class="chk"><input type="checkbox" name="sales_tax"> Sales tax</label>
+            <label class="chk"><input type="checkbox" name="taxes_other"> Taxes / other</label>
+          </div>
+          <div class="frow-group" style="margin-bottom:8px">
+            <label style="width:70px">Notes:</label>
+            <input class="box" name="notes" style="flex:1">
+          </div>
+        </div>
+      </form>
+    </div>
+
+  {% elif active_tab == "bank" %}
+    <div class="panelhead">
+      <b>{{ active_tab_label }} :</b>
+      {% include "partials/tab_filters.html" with filters=bank_filters %}
+      <span class="spacer" style="flex:1"></span>
+    </div>
+    <div class="scroll">
+      <table class="grid">
+        <thead><tr><th>Year</th><th>Month</th><th>Notes</th><th>Recd/stored</th><th>Chk img recd</th>
+          <th>Date recd</th><th>Received by</th><th>Data entered</th><th>Entered by</th><th>DT completed</th><th></th></tr></thead>
+        <tbody>
+          {% for b in bank_statements %}
+          <tr data-save="{% url 'bank_statement_save' client.id %}" data-id="{{ b.id }}">
+            <td>{{ b.year }}</td><td>{{ b.month }}</td>
+            <td><input class="box" name="notes" value="{{ b.notes }}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}' hx-post="{% url 'bank_statement_save' client.id %}"></td>
+            <td style="text-align:center"><input type="checkbox" name="received_stored" {% if b.received_stored %}checked{% endif %} hx-post="{% url 'bank_statement_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}'></td>
+            <td style="text-align:center"><input type="checkbox" name="check_image_received" {% if b.check_image_received %}checked{% endif %} hx-post="{% url 'bank_statement_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}'></td>
+            <td><input class="box" name="date_received" value="{{ b.date_received }}" style="width:90px" hx-post="{% url 'bank_statement_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}'></td>
+            <td><input class="box" name="received_by" value="{{ b.received_by }}" style="width:80px" hx-post="{% url 'bank_statement_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}'></td>
+            <td style="text-align:center"><input type="checkbox" name="data_entered" {% if b.data_entered %}checked{% endif %} hx-post="{% url 'bank_statement_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}'></td>
+            <td><input class="box" name="entered_by" value="{{ b.entered_by }}" style="width:80px" hx-post="{% url 'bank_statement_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}'></td>
+            <td><input class="box" name="date_completed" value="{{ b.date_completed }}" style="width:90px" hx-post="{% url 'bank_statement_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"statement_id":"{{ b.id }}"}'></td>
+            <td>
+              <form id="bank-delete-form-{{ b.id }}" method="post" action="{% url 'bank_statement_delete' client.id b.id %}">
+                {% csrf_token %}
+                <button class="iconbtn danger" type="button" title="Delete"
+                        onclick="confirmDeleteForm('bank-delete-form-{{ b.id }}', 'Delete this bank statement?')">&#10005;</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="11" class="empty-state">No bank statements on file.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% elif active_tab == "annuals" %}
+    <div class="panelhead">
+      <b>Annual Liabilities :</b>
+      {% include "partials/tab_filters.html" with filters=annuals_filters %}
+      <span class="spacer" style="flex:1"></span>
+    </div>
+    <div class="scroll">
+      <table class="grid">
+        <thead><tr><th>Year</th><th>Type</th><th>Due date</th><th>Rqmt recd</th><th>Filed</th>
+          <th>Dt filed</th><th>Filed by</th><th>Completed</th><th></th></tr></thead>
+        <tbody>
+          {% for a in annual_liabilities %}
+          <tr>
+            <td>{{ a.year }}</td><td>{{ a.type }}</td><td>{{ a.due_date }}</td>
+            <td style="text-align:center"><input type="checkbox" name="requirement_received" {% if a.requirement_received %}checked{% endif %} hx-post="{% url 'annual_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"annual_id":"{{ a.id }}"}'></td>
+            <td style="text-align:center"><input type="checkbox" name="filed" {% if a.filed %}checked{% endif %} hx-post="{% url 'annual_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"annual_id":"{{ a.id }}"}'></td>
+            <td><input class="box" name="date_filed" value="{{ a.date_filed }}" style="width:90px" hx-post="{% url 'annual_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"annual_id":"{{ a.id }}"}'></td>
+            <td><input class="box" name="filed_by" value="{{ a.filed_by }}" style="width:80px" hx-post="{% url 'annual_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"annual_id":"{{ a.id }}"}'></td>
+            <td style="text-align:center"><input type="checkbox" name="completed" {% if a.completed %}checked{% endif %} hx-post="{% url 'annual_save' client.id %}" hx-trigger="change" hx-swap="none" hx-include="closest tr" hx-vals='{"annual_id":"{{ a.id }}"}'></td>
+            <td>
+              <form id="annual-delete-form-{{ a.id }}" method="post" action="{% url 'annual_delete' client.id a.id %}">
+                {% csrf_token %}
+                <button class="iconbtn danger" type="button" title="Delete"
+                        onclick="confirmDeleteForm('annual-delete-form-{{ a.id }}', 'Delete this annual liability?')">&#10005;</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" class="empty-state">No annual liabilities on record.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% elif active_tab == "fin" %}
+    <div class="scroll">
+      <div class="tab-buttons fin-grid">
+        <div>
+          <div class="date-range-box">
+            <div class="drow">
+              <span>Select date range</span>
+            </div>
+            <div class="drow">
+              <input class="box fixed" style="width:100px" value="{{ fin_date_range.start }}" readonly>
+              <span>to</span>
+              <input class="box fixed" style="width:100px" value="{{ fin_date_range.end }}" readonly>
+            </div>
+            <button class="action" type="button">Import bank transactions</button>
+            <button class="action" type="button">Manage bank transactions</button>
+          </div>
+          <button class="action" type="button">Profit &amp; loss statement</button>
+          <button class="action" type="button">Balance sheet</button>
+        </div>
+        <div>
+          <button class="action" type="button">Personal financial statement</button>
+        </div>
+      </div>
+    </div>
+
+  {% elif active_tab == "fn" %}
+    <div class="scroll">
+      <div class="tab-buttons fn-grid">
+        <div>
+          <h3>Financial</h3>
+          <a class="action" href="{% url 'salestax_batch' %}"
+             hx-get="{% url 'salestax_batch' %}" hx-target="#modal-root" hx-swap="innerHTML">Enter monthly sales tax data</a>
+        </div>
+        <div>
+          <h3>Communication</h3>
+          <h3 style="margin-top:20px">Data generation</h3>
+          <button class="action" type="button">Generate bank statement log</button>
+          <h3 style="margin-top:20px">Collaboration / exports</h3>
+          <button class="action" type="button">Create monthly fees ACH data file</button>
+        </div>
+        <div>
+          <h3>Reporting</h3>
+          <a class="action" href="{% url 'report_missing_banking' %}">Clients missing banking info</a>
+          <a class="action" href="{% url 'report_missing_other' %}">Clients missing other info</a>
+          <a class="action" href="{% url 'report_services_listing' %}">Clients services listing</a>
+        </div>
+      </div>
+      <div class="tab-buttons">
+        <h3>Important weblinks</h3>
+        <span class="link-inline" style="cursor:default">Sales tax rates by address</span>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="panelhead">
+      <b>{{ active_tab_label }} :</b>
+      <span class="spacer" style="flex:1"></span>
+      <button class="iconbtn" title="Add">+</button>
+      <button class="iconbtn" title="Edit"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-8 8-3.5 1L3 10.5z"/></svg></button>
+      <button class="iconbtn" title="Delete">&#10005;</button>
+    </div>
+    <div class="scroll">
+      <p class="empty-state">Not built in this pass — see docs/mockups/ for the design spec.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+  // ---- Contact detail panel: fields are server-rendered for whichever
+  // contact is selected (?contact=<id>). These only toggle the panel's
+  // visibility and readOnly state; saving is a real form POST.
+  function openContactView(){
+    ['cd-name','cd-email','cd-phone','cd-pct'].forEach(id => document.getElementById(id).readOnly = true);
+    document.getElementById('contact-ssn-view').hidden = false;
+    document.getElementById('contact-ssn-add').hidden = true;
+    document.getElementById('contact-detail').hidden = false;
+  }
+
+  function openContactEdit(){
+    ['cd-name','cd-email','cd-phone','cd-pct'].forEach(id => document.getElementById(id).readOnly = false);
+    document.getElementById('contact-ssn-view').hidden = true;
+    document.getElementById('contact-ssn-add').hidden = false;
+    ['cd-ssn','cd-dl','cd-dob'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('contact-detail').hidden = false;
+    document.getElementById('cd-name').focus();
+  }
+
+  function openContactAdd(){
+    document.getElementById('cd-id').value = '';
+    ['cd-name','cd-email','cd-phone'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).readOnly = false; });
+    document.getElementById('cd-pct').value = '100';
+    document.getElementById('cd-pct').readOnly = false;
+    document.getElementById('cd-rcpt').checked = true;
+    document.getElementById('cd-owner').checked = false;
+    ['cd-ssn', 'cd-dl', 'cd-dob'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('contact-ssn-view').hidden = true;
+    document.getElementById('contact-ssn-add').hidden = false;
+    document.getElementById('contact-detail').hidden = false;
+    document.getElementById('cd-name').focus();
+  }
+
+  // A plain onclick that navigates immediately never lets a second click
+  // register as dblclick — the page is already unloading. Debounce: a
+  // single click navigates after a short delay; a real double-click
+  // cancels that and navigates straight in with the panel flagged open.
+  let contactClickTimer = null;
+  function contactRowClick(id){
+    clearTimeout(contactClickTimer);
+    contactClickTimer = setTimeout(function(){
+      location.href = '?tab={{ active_tab }}&contact=' + id;
+    }, 300);
+  }
+  function contactRowDblClick(id){
+    clearTimeout(contactClickTimer);
+    location.href = '?tab={{ active_tab }}&contact=' + id + '&open=1';
+  }
+
+  {% if request.GET.open and primary_contact %}
+  openContactView();
+  {% endif %}
+
+  function closeContactDetail(){
+    document.getElementById('contact-detail').hidden = true;
+    const idField = document.getElementById('cd-id');
+    if(idField) idField.value = '{% if primary_contact %}{{ primary_contact.id }}{% endif %}';
+  }
+
+  // ---- Client identity fields: real form (#client-edit-form), Save/Cancel
+  // just toggle readOnly/lock; the Save icon is `form="client-edit-form"`
+  // so clicking it also submits.
+  let clientOriginal = null;
+  let clientEditing = false;
+
+  function clientEditableEls(){
+    return document.querySelectorAll('.client-fields [data-editable]');
+  }
+
+  function captureClientValues(){
+    return Array.from(clientEditableEls()).map(el => el.type === 'checkbox' ? el.checked : el.value);
+  }
+
+  function setLocked(locked){
+    document.querySelectorAll('.client-fields').forEach(section => section.classList.toggle('locked', locked));
+  }
+
+  function openClientEdit(){
+    if(clientOriginal === null) clientOriginal = captureClientValues();
+    clientEditableEls().forEach(el => { if(el.type !== 'checkbox') el.readOnly = false; });
+    setLocked(false);
+    clientEditing = true;
+    const nameField = document.getElementById('cf-name');
+    if(nameField) nameField.focus();
+  }
+
+  function saveClientEdit(){
+    // Returns the fields to their locked look; confirmSaveClient() does the
+    // actual form submission once the user confirms.
+    clientEditableEls().forEach(el => { if(el.type !== 'checkbox') el.readOnly = true; });
+    setLocked(true);
+    clientEditing = false;
+  }
+
+  function confirmSaveClient(){
+    confirmAction('Save changes to this client?', function(){
+      saveClientEdit();
+      const form = document.getElementById('client-edit-form');
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+  }
+
+  function cancelClientEdit(){
+    if(!clientEditing) return;
+    const snap = clientOriginal || [];
+    clientEditableEls().forEach((el, i) => {
+      if(el.type === 'checkbox'){ el.checked = !!snap[i]; }
+      else { el.value = snap[i] || ''; el.readOnly = true; }
+    });
+    setLocked(true);
+    clientEditing = false;
+  }
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') { cancelClientEdit(); closeNoteAdd(); }
+  });
+
+  function openNoteAdd(){
+    document.getElementById('note-id').value = '';
+    document.getElementById('note-category').value = '';
+    document.getElementById('note-text').value = '';
+    document.getElementById('note-add').hidden = false;
+    document.getElementById('note-category').focus();
+  }
+
+  function openNoteEdit(id, category, text){
+    document.getElementById('note-id').value = id;
+    document.getElementById('note-category').value = category;
+    document.getElementById('note-text').value = text;
+    document.getElementById('note-add').hidden = false;
+    document.getElementById('note-text').focus();
+  }
+
+  function closeNoteAdd(){
+    const el = document.getElementById('note-add');
+    if(el) el.hidden = true;
+  }
+
+  // ---- Notes: header Edit/Delete act on whichever row was last clicked.
+  const noteDeleteBase = "{% url 'note_delete' client.id 0 %}";
+  let selectedNote = null;
+
+  function selectNoteRow(tr){
+    document.querySelectorAll('#notes-grid tbody tr[data-id]').forEach(r => r.removeAttribute('aria-selected'));
+    tr.setAttribute('aria-selected', 'true');
+    selectedNote = { id: tr.dataset.id, category: tr.dataset.category, text: tr.dataset.text };
+    document.getElementById('note-edit-btn').disabled = false;
+    document.getElementById('note-delete-btn').disabled = false;
+    document.getElementById('note-delete-form').action = noteDeleteBase.replace(/\/0\/delete\/$/, '/' + selectedNote.id + '/delete/');
+  }
+
+  function editSelectedNote(){
+    if(!selectedNote) return;
+    openNoteEdit(selectedNote.id, selectedNote.category, selectedNote.text);
+  }
+
+  (function(){
+    const preselected = document.querySelector('#notes-grid tbody tr[aria-selected="true"]');
+    if(preselected) selectNoteRow(preselected);
+  })();
+
+  const credDeleteBase = "{% url 'credential_delete' client.id 0 %}";
+  let selectedCred = null;
+
+  function openCredAdd(){
+    document.getElementById('cred-id').value = '';
+    document.getElementById('cred-site').value = '';
+    document.getElementById('cred-username').value = '';
+    document.getElementById('cred-password').value = '';
+    document.getElementById('cred-password').placeholder = '';
+    document.getElementById('cred-notes').value = '';
+    document.getElementById('cred-active').checked = true;
+    document.getElementById('cred-detail').hidden = false;
+    document.getElementById('cred-site').focus();
+  }
+
+  function openCredEdit(id, site, username, notes, active){
+    document.getElementById('cred-id').value = id;
+    document.getElementById('cred-site').value = site;
+    document.getElementById('cred-username').value = username;
+    document.getElementById('cred-password').value = '';
+    document.getElementById('cred-password').placeholder = '(unchanged)';
+    document.getElementById('cred-notes').value = notes;
+    document.getElementById('cred-active').checked = active;
+    document.getElementById('cred-detail').hidden = false;
+  }
+
+  function closeCredDetail(){
+    document.getElementById('cred-detail').hidden = true;
+  }
+
+  function selectCredRow(tr){
+    document.querySelectorAll('#cred-grid tbody tr[data-id]').forEach(r => r.removeAttribute('aria-selected'));
+    tr.setAttribute('aria-selected', 'true');
+    selectedCred = {
+      id: tr.dataset.id, site: tr.dataset.site, username: tr.dataset.username,
+      notes: tr.dataset.notes, active: tr.dataset.active === 'true',
+    };
+    document.getElementById('cred-edit-btn').disabled = false;
+    document.getElementById('cred-delete-btn').disabled = false;
+    document.getElementById('cred-delete-form').action = credDeleteBase.replace(/\/0\/delete\/$/, '/' + selectedCred.id + '/delete/');
+  }
+
+  function editSelectedCred(){
+    if(!selectedCred) return;
+    openCredEdit(selectedCred.id, selectedCred.site, selectedCred.username, selectedCred.notes, selectedCred.active);
+  }
+
+  function openTaskAdd(){
+    document.getElementById('task-id').value = '';
+    document.getElementById('task-text').value = '';
+    document.getElementById('task-notes').value = '';
+    document.getElementById('task-assignee').value = '';
+    document.getElementById('task-due').value = '';
+    document.getElementById('task-completed').checked = false;
+    document.getElementById('task-add').hidden = false;
+    document.getElementById('task-text').focus();
+  }
+
+  function openTaskEdit(id, task, notes, assignee, due, completed){
+    document.getElementById('task-id').value = id;
+    document.getElementById('task-text').value = task;
+    document.getElementById('task-notes').value = notes === '—' ? '' : notes;
+    document.getElementById('task-assignee').value = assignee;
+    document.getElementById('task-due').value = due;
+    document.getElementById('task-completed').checked = completed;
+    document.getElementById('task-add').hidden = false;
+    document.getElementById('task-text').focus();
+  }
+
+  // ---- Tasks: header Edit/Delete act on whichever row was last clicked.
+  const taskDeleteBase = "{% url 'task_delete' client.id 0 %}";
+  let selectedTask = null;
+
+  function selectTaskRow(tr){
+    document.querySelectorAll('#tasks-grid tbody tr[data-id]').forEach(r => r.removeAttribute('aria-selected'));
+    tr.setAttribute('aria-selected', 'true');
+    selectedTask = {
+      id: tr.dataset.id, task: tr.dataset.task, notes: tr.dataset.notes,
+      assignee: tr.dataset.assignee, due: tr.dataset.due, completed: tr.dataset.completed === 'true',
+    };
+    document.getElementById('task-edit-btn').disabled = false;
+    document.getElementById('task-delete-btn').disabled = false;
+    document.getElementById('task-delete-form').action = taskDeleteBase.replace(/\/0\/delete\/$/, '/' + selectedTask.id + '/delete/');
+  }
+
+  function editSelectedTask(){
+    if(!selectedTask) return;
+    openTaskEdit(selectedTask.id, selectedTask.task, selectedTask.notes, selectedTask.assignee, selectedTask.due, selectedTask.completed);
+  }
+
+  function openChangeAdd(){
+    document.getElementById('change-add').hidden = false;
+  }
+</script>
+{% endblock %}
+
+{% block status_hints %}
+<span style="display:inline-flex;align-items:center;gap:12px">
+  <span>Prototype data — local SQLite, not the legacy database.</span>
+  <span class="iconrow">
+    <button class="iconbtn" title="Lock"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V4.5a3 3 0 0 1 6 0V7"/></svg></button>
+    <button class="iconbtn" title="Exit"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2H3v12h3"/><path d="M14 8H6.5"/><path d="M11.5 5.5L14.5 8l-3 2.5"/></svg></button>
+    <button class="iconbtn danger" title="Close">&#10005;</button>
+  </span>
+</span>
+{% endblock %}

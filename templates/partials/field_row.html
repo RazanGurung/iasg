@@ -1,0 +1,10 @@
+{# expects: label, name, value, editable=False, computed=False, type="text" #}
+<div class="field-row">
+  <label for="{{ name }}">{{ label }}</label>
+  {% if computed %}
+    <input class="box computed" type="text" id="{{ name }}" value="{{ value }}" readonly tabindex="-1">
+  {% else %}
+    <input class="box" type="{{ type|default:"text" }}" id="{{ name }}" name="{{ name }}"
+           value="{{ value }}" {% if not editable %}readonly{% endif %}>
+  {% endif %}
+</div>

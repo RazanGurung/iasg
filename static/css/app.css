@@ -1,0 +1,274 @@
+/* ============================================================
+   IASG MIS — shared design tokens and components.
+   Palette sampled from the legacy Access screenshots (see
+   docs/design.md "Source of truth"), density bumped for readability.
+   No framework, no build step. Every screen loads this one file.
+   ============================================================ */
+
+:root{
+  /* ---- chrome ---- */
+  --frame:     #7a4f50;   /* outer window border — legacy brick-maroon */
+  --page:      #ffffff;   /* outer page background, behind the app frame */
+  --surface:   #ffffff;   /* fields, grids, panels */
+  --disabled-bg: #f1f1f1; /* computed / readonly field background */
+
+  /* ---- lines ---- */
+  --line:      #b9b9b9;   /* hairline rules, field borders */
+  --line-firm: #8f8f8f;   /* section dividers, stronger rules */
+
+  /* ---- text ---- */
+  --ink:       #1a1a1a;   /* body text, labels, values */
+  --muted:     #55606b;   /* secondary text — column headers, hints */
+  --faint:     #949daa;   /* placeholders, disabled text */
+
+  /* ---- selection / accent ---- */
+  --select-bg: #1a1a1a;   /* selected grid/list row — legacy is black, not blue */
+  --select-fg: #ffffff;
+  --accent:    #2c5aa0;   /* the one added color: focus rings, reveal links */
+  --accent-bg: #e8eff7;
+
+  /* ---- tabs — bordered boxes, not a flat band (checked against the legacy screenshot) ---- */
+  --tab-bg:        #dedad9;
+  --tab-border:    #b9cbe3;
+  --tab-active-bg: #ffffff;
+
+  /* ---- protected values ---- */
+  --protected: #55606b;
+
+  /* ---- state colors (not in the legacy screens — functional only) ---- */
+  --ok:        #2e7d4f;
+  --warn:      #9a5b00;  --warn-bg:  #fff8ea;
+  --danger:    #9d2419;  --danger-bg:#fdf0ee;
+
+  /* ---- scale ---- */
+  --row:    24px;    /* legacy is ~16-18px; bumped for readability */
+  --field:  24px;
+  --fs:     12.5px;  /* legacy is ~11px */
+  --fs-sm:  11px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html,body{height:100%}
+body{
+  font-family:"Segoe UI",-apple-system,system-ui,sans-serif;
+  font-size:var(--fs);
+  font-weight:500;
+  color:var(--ink);
+  background:var(--page);
+  line-height:1.35;
+  -webkit-font-smoothing:antialiased;
+  display:flex;
+  padding:70px 120px;
+  overflow:hidden;
+}
+.num,input,td.num,th.num{font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   App frame — the maroon-bordered window every screen sits in
+   ============================================================ */
+.app-frame{
+  flex:1;
+  min-width:0;min-height:0;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  background:var(--surface);
+  border:2px solid var(--frame);
+}
+.app-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+
+/* ============================================================
+   Identity bar — top strip naming the record/screen
+   ============================================================ */
+.identity{
+  height:32px;flex:none;
+  display:flex;align-items:center;gap:12px;
+  padding:0 16px;
+  background:var(--surface);
+  border-bottom:1px solid var(--line-firm);
+  font-size:var(--fs-sm);
+}
+.identity h1{font-size:13px;font-weight:600}
+.identity .id{color:var(--muted)}
+.identity .spacer{flex:1}
+.identity .meta{color:var(--muted)}
+
+/* ============================================================
+   Field rows — boxed, Access-style label/value pairs
+   Default state renders a readonly-looking box; add .editing to
+   the containing element to make fields live.
+   ============================================================ */
+.field-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 32px}
+.field-col h2{
+  font-size:var(--fs-sm);font-weight:600;color:var(--muted);
+  margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid var(--line);
+}
+
+.field-row{display:grid;grid-template-columns:118px 1fr;gap:0 8px;align-items:center;margin-bottom:4px}
+.field-row.two{grid-template-columns:118px 1fr 1fr}
+.field-row label{font-size:var(--fs-sm);color:var(--muted)}
+
+.box, .field-row input[type=text], .field-row input[type=password], .field-row select{
+  height:var(--field);width:100%;
+  font:inherit;font-size:var(--fs);color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line);
+  padding:0 6px;
+}
+/* The legacy screen draws every field the same plain white box whether it's
+   currently editable or not — readonly alone does NOT get greyed out here.
+   Only genuinely computed values (never enterable) get the locked look. */
+.box.computed, input.computed, select.computed{
+  background:var(--disabled-bg);
+  color:var(--ink);
+  border-style:dotted;
+  border-color:var(--line-firm);
+}
+.box:focus, input:focus, select:focus{
+  outline:none;border:1px solid var(--accent);
+  box-shadow:0 0 0 1px var(--accent) inset;
+}
+
+/* ============================================================
+   Tabs — bordered boxes in a row, white cut-out for the active tab
+   (checked directly against the legacy screenshot, not a flat band)
+   ============================================================ */
+.tab-strip{
+  height:26px;flex:none;
+  display:flex;align-items:stretch;gap:0;
+  background:var(--surface);
+  border-bottom:1px solid var(--line-firm);
+  padding:2px 4px 0;
+}
+.tab{
+  height:100%;padding:0 12px;margin-right:-1px;
+  font:inherit;font-size:var(--fs-sm);color:var(--ink);
+  background:var(--tab-bg);border:1px solid var(--tab-border);
+  cursor:pointer;white-space:nowrap;
+}
+.tab:hover{background:var(--accent-bg)}
+.tab[aria-selected=true]{
+  background:var(--tab-active-bg);
+  font-weight:600;
+  border-bottom-color:var(--tab-active-bg);
+  position:relative;z-index:1;
+}
+
+/* ============================================================
+   Data grids — white surface, thin rule under header, no shading
+   ============================================================ */
+table.grid{border-collapse:collapse;width:100%}
+table.grid thead th{
+  height:var(--row);padding:0 10px 0 4px;
+  text-align:left;font-size:var(--fs-sm);font-weight:600;color:var(--ink);
+  background:var(--surface);
+  border-bottom:1px solid var(--line-firm);
+  white-space:nowrap;
+}
+table.grid tbody td{
+  height:var(--row);padding:0 10px 0 4px;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+table.grid th.num,table.grid td.num{text-align:right;padding-right:16px}
+table.grid td.calc{background:var(--disabled-bg);color:var(--muted)}
+table.grid tbody tr:hover td{background:var(--accent-bg)}
+table.grid tbody tr[aria-selected=true] td{background:var(--select-bg);color:var(--select-fg)}
+.empty-state{padding:24px;color:var(--faint);font-size:var(--fs-sm)}
+
+/* frozen leading columns, for wide batch grids */
+table.grid td.freeze,table.grid th.freeze{position:sticky;left:0;background:var(--surface);z-index:1}
+table.grid tbody tr:hover td.freeze{background:var(--accent-bg)}
+table.grid tbody tr[aria-selected=true] td.freeze{background:var(--select-bg)}
+
+/* ============================================================
+   Buttons — flat, bordered, no gradients or bevels
+   ============================================================ */
+button, .btn{
+  height:var(--field);padding:0 12px;
+  font:inherit;font-size:var(--fs-sm);color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line-firm);
+  cursor:pointer;
+}
+button:hover, .btn:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible, .btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.solid, .btn.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.solid:hover, .btn.solid:hover{background:#204880;color:#fff}
+button[disabled], .btn[disabled]{color:var(--faint);border-color:var(--line);cursor:default}
+button[disabled]:hover, .btn[disabled]:hover{color:var(--faint);border-color:var(--line)}
+button.link{background:none;border:0;color:var(--accent);padding:0;height:auto}
+button.link:hover{text-decoration:underline}
+
+/* ============================================================
+   Protected values — masked by default, revealed one at a time, logged
+   ============================================================ */
+.protected{
+  display:inline-flex;align-items:center;gap:4px;
+  height:var(--field);
+  background:var(--surface);border:1px solid var(--line);
+  padding:0 2px 0 6px;
+  color:var(--protected);letter-spacing:.4px;
+}
+.protected:focus-within{border-color:var(--accent)}
+.protected .masked{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.protected .tag{
+  flex:0 0 auto;cursor:pointer;background:none;border:0;padding:0 4px;
+  font-size:13px;line-height:1;color:var(--muted);
+}
+.protected .tag:hover{color:var(--accent)}
+.protected.open{color:var(--ink)}
+.protected.open .tag{color:var(--warn)}
+
+/* plain variant — masked text + reveal icon with no box, for use inside
+   plain grid cells (e.g. Credentials) instead of boxed field rows */
+.protected.bare{height:auto;background:none;border:0;padding:0}
+
+/* ============================================================
+   Status bar — bottom strip, legacy "Login :" styling preserved
+   ============================================================ */
+.status-bar{
+  height:30px;flex:none;
+  display:flex;align-items:center;gap:16px;
+  padding:0 16px;
+  font-size:var(--fs-sm);color:var(--muted);
+  background:var(--surface);
+  border-top:1px solid var(--accent);
+}
+.status-bar .spacer{flex:1}
+.status-bar .who{color:var(--accent);font-style:italic;font-weight:600}
+
+/* ============================================================
+   Modal — a legacy Access form popped up as a floating window
+   over the console. #modal-root (in base.html) is the swap
+   target; HTMX drops a .modal-overlay + .modal-dialog into it.
+   ============================================================ */
+.modal-overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(26,26,26,.45);
+  display:flex;align-items:center;justify-content:center;
+  padding:32px;
+}
+.modal-dialog{
+  display:flex;flex-direction:column;
+  max-width:100%;max-height:100%;
+  background:var(--surface);
+  border:1px solid var(--frame);
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+}
+.modal-titlebar{
+  height:26px;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--fs-sm);font-weight:600;
+  background:var(--tab-bg);
+  border-bottom:1px solid var(--line-firm);
+}
+.modal-body{flex:1;min-height:0;overflow:auto}
+.modal-foot{
+  height:40px;flex:none;
+  display:flex;align-items:center;gap:8px;
+  padding:0 12px;
+  background:var(--surface);
+  border-top:1px solid var(--line-firm);
+}
+.modal-foot .spacer{flex:1}

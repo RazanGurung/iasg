@@ -1,0 +1,389 @@
+{% comment %}
+Manage Sales Tax Data — ported pixel-close from the legacy Access screen
+(public/14.webp): light-blue banner stacked over three control rows, a flat
+white grid header, and a light-grey datasheet body with the frozen Lock/
+Client Name columns left white — same treatment Access gives frozen columns.
+Floats over the console like an MDI child window (public/12.webp), no dimmed
+backdrop; clicking either window brings it to front.
+
+Deviations from the screenshot, both deliberate (docs/design.md, docs/security.md):
+- Routing # and Bank Account # are masked and revealed one at a time, logged
+  on reveal. The legacy screen shows both in the clear — this is a security
+  requirement that overrides visual fidelity here specifically.
+- Submit Date renders as "5 Sep 2026", not the legacy "9/5/2026" — unambiguous
+  date formatting, a documented deviation, not a chrome choice.
+
+Backed by apps.salestax.models.SalesTaxEntry (prototype-only, managed=False —
+see that file). Total Sales / Exempt / Meal Tax / Pay Mode save via htmx on
+change; "Source" stays a fixed "CP" placeholder, nothing behind it yet.
+{% endcomment %}
+  <div class="modal-dialog st-dialog" role="dialog" aria-modal="false" aria-labelledby="st-title">
+    <div class="modal-titlebar" id="st-title">
+      [IASG MIS] - [Manage Sales Tax Data]
+      <button type="button" class="st-close" title="Close" onclick="closeModal()">&#10005;</button>
+    </div>
+
+    <div class="modal-body">
+      <style>
+        /* Sized to match the console's own footprint before its margin was
+           increased (body padding was 40px on every side — see app.css). */
+        .st-dialog{width:calc(100vw - 80px);height:calc(100vh - 80px);
+          position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2}
+        .st-dialog .modal-titlebar{position:relative;cursor:move;user-select:none;
+          background:#fff;justify-content:center}
+        .st-close{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+          width:18px;height:18px;border-radius:0;border:0;background:transparent;
+          color:#1a1a1a;font-size:13px;line-height:1;cursor:pointer;display:inline-flex;
+          align-items:center;justify-content:center}
+        .st-close:hover{color:var(--danger)}
+        .st-dialog .modal-body{display:flex;flex-direction:column;overflow:hidden}
+
+        .st-dialog{--st-band:#cfe1f5;--st-rule:#26364a;--st-text:#243447}
+
+        /* ---------- banner: three stacked bands on one light-blue field ---------- */
+        .st-banner{flex:none;display:flex;flex-direction:column;background:var(--st-band);
+          border-bottom:2px solid var(--st-rule)}
+        .st-band{display:flex;flex-wrap:wrap;align-items:center;gap:5px 14px;
+          min-height:27px;padding:3px 14px;border-bottom:1px solid rgba(38,54,74,.3)}
+        .st-band:last-child{border-bottom:0}
+        .st-band .spacer{flex:1 0 8px}
+        .st-band label{font-size:var(--fs-sm);color:var(--st-text);white-space:nowrap}
+
+        .st-row1 .st-title-text{font-weight:700;color:var(--st-text);font-size:var(--fs-sm);white-space:nowrap}
+        .st-row1 .st-period{font-size:var(--fs-sm);color:var(--st-text);white-space:nowrap}
+        .tiers{display:flex;gap:16px}
+        .tier{display:flex;align-items:center;gap:5px;font-size:var(--fs-sm);color:var(--st-text);white-space:nowrap}
+        .tier .dot{width:14px;height:10px;background:#e6b64f;border:1px solid #b0821f;display:inline-block}
+        .st-row1 .progress-label{font-size:var(--fs-sm);color:var(--st-text);white-space:nowrap}
+
+        .st-band select,.st-band input[type=text]{height:21px;font:inherit;font-size:var(--fs-sm);
+          color:var(--ink);background:#fff;border:1px solid #8ea3bd;padding:0 4px}
+        .st-band select:focus,.st-band input:focus{outline:none;border-color:var(--accent)}
+        #find{width:220px}
+        .st-regen{height:21px;padding:0 10px;font:inherit;font-size:var(--fs-sm);color:var(--ink);
+          background:#e7eef7;border:1px solid #8ea3bd;cursor:pointer}
+        .st-regen:hover{border-color:var(--accent);color:var(--accent)}
+
+        .chk{display:flex;align-items:center;gap:4px;font-size:var(--fs-sm);color:var(--st-text)}
+        .chk input{width:13px;height:13px}
+        .totals{font-size:var(--fs-sm);color:var(--st-text);white-space:nowrap;margin-left:auto}
+        .totals b{font-weight:700}
+
+        /* ---------- grid: flat white header, boxed grey datasheet body ----------
+           Fixed layout, every column given an explicit width except Client
+           Name, which is left unset so it alone stretches to absorb whatever
+           room is left — the table always runs edge to edge with no
+           horizontal scrollbar, however wide the dialog is. */
+        .st-wrap{flex:1;min-height:0;overflow:auto;background:#fff}
+        .st-wrap table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:10.5px}
+        .st-wrap thead th{position:sticky;top:0;background:#fff;z-index:3;font-weight:600;
+          color:var(--muted);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+          padding:3px 4px;border-bottom:2px solid var(--ink);border-right:1px solid var(--line)}
+        .st-wrap thead th.r{text-align:right}
+        .st-wrap tbody td{height:var(--row);padding:0 4px;border-bottom:1px solid var(--line);
+          border-right:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+          font-variant-numeric:tabular-nums;background:var(--disabled-bg)}
+        .st-wrap tbody td.r{text-align:right}
+        .st-wrap tbody tr:hover td{background:var(--accent-bg)}
+
+        .st-wrap th.f1,.st-wrap td.f1{position:sticky;left:0;z-index:2;background:#fff;
+          width:22px;text-align:center;border-right:1px solid var(--line-firm)}
+        .st-wrap th.f2,.st-wrap td.f2{position:sticky;left:22px;z-index:2;background:#fff;
+          min-width:126px;border-right:2px solid var(--line-firm)}
+        .st-wrap thead th.f1,.st-wrap thead th.f2{z-index:4}
+        .st-wrap tbody tr:hover td.f1,.st-wrap tbody tr:hover td.f2{background:var(--accent-bg)}
+        .st-wrap .client{font-weight:600;color:var(--ink)}
+
+        .st-wrap th.fedid,.st-wrap td.fedid{width:66px}
+        .st-wrap th.stid,.st-wrap td.stid{width:66px}
+        .st-wrap th.county,.st-wrap td.county{width:64px}
+        .st-wrap th.o,.st-wrap td.o{width:20px;text-align:center}
+        .st-wrap th.sales,.st-wrap td.sales{width:76px}
+        .st-wrap th.exempt,.st-wrap td.exempt{width:68px}
+        .st-wrap th.mealtax,.st-wrap td.mealtax{width:52px}
+        .st-wrap th.source,.st-wrap td.source{width:44px}
+        .st-wrap th.strate,.st-wrap td.strate{width:48px}
+        .st-wrap th.stamt,.st-wrap td.stamt{width:58px}
+        .st-wrap th.cortate,.st-wrap td.cortate{width:58px}
+        .st-wrap th.coramt,.st-wrap td.coramt{width:68px}
+        .st-wrap th.cityrate,.st-wrap td.cityrate{width:54px}
+        .st-wrap th.cityamt,.st-wrap td.cityamt{width:54px}
+        .st-wrap th.spclrate,.st-wrap td.spclrate{width:46px}
+        .st-wrap th.spclamt,.st-wrap td.spclamt{width:66px}
+        .st-wrap th.mtamt,.st-wrap td.mtamt{width:52px}
+        .st-wrap th.totpay,.st-wrap td.totpay{width:64px}
+        .st-wrap th.paymode,.st-wrap td.paymode{width:56px}
+        .st-wrap th.routing,.st-wrap td.routing{width:74px}
+        .st-wrap th.acct,.st-wrap td.acct{width:66px}
+        .st-wrap th.subdate,.st-wrap td.subdate{width:72px}
+        .st-wrap th.complete,.st-wrap td.complete{width:56px}
+
+        .st-wrap input.chk-cell{width:12px;height:12px}
+        .st-wrap td input.entry{width:100%;height:calc(var(--row) - 8px);font:inherit;font-size:10.5px;
+          text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);background:#fff;
+          border:1px solid var(--line-firm);padding:0 2px}
+        .st-wrap td input.entry:focus{outline:none;border-color:var(--accent)}
+        .st-wrap select.src,.st-wrap select.mode{width:100%;height:calc(var(--row) - 8px);
+          font:inherit;font-size:10.5px;color:var(--ink);background:#fff;border:1px solid var(--line-firm)}
+        .st-wrap .protected{max-width:100%}
+        .st-wrap .protected .masked{font-size:10.5px}
+      </style>
+
+      <div class="st-banner">
+        <div class="st-band st-row1">
+          <span class="st-title-text">MANAGE SALES TAX DATA FOR ALL CLIENTS</span>
+          <span class="st-period">Period : {{ month }}/1/{{ year }} to {{ month }}/28/{{ year }} &nbsp;===&nbsp; {{ month_name }} {{ year }}</span>
+          <span class="spacer"></span>
+          <span class="tiers">
+            <span class="tier"><i class="dot"></i>1st (5th) :</span>
+            <span class="tier"><i class="dot"></i>2nd (10th) :</span>
+            <span class="tier"><i class="dot"></i>3rd (15th) :</span>
+          </span>
+          <span class="progress-label">Clients To Process With Progress</span>
+        </div>
+
+        <div class="st-band st-row2">
+          <form id="period-form" method="get" action="{% url 'salestax_batch' %}" style="display:contents">
+            <label>Year</label>
+            <select name="year" onchange="this.form.submit()">
+              {% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}
+            </select>
+            <label>Month :</label>
+            <select name="month" onchange="this.form.submit()">
+              {% for m, name in months %}<option value="{{ m }}"{% if m == month %} selected{% endif %}>{{ name }}</option>{% endfor %}
+            </select>
+          </form>
+          <form method="post" action="{% url 'salestax_batch' %}" style="display:contents">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="regenerate">
+            <input type="hidden" name="year" value="{{ year }}">
+            <input type="hidden" name="month" value="{{ month }}">
+            <button type="submit" class="st-regen">Re / Generate Data</button>
+          </form>
+          <label>Client Name</label>
+          <input id="find" type="text">
+        </div>
+
+        <div class="st-band st-row3">
+          <label>Filter :</label>
+          <label class="chk"><input type="checkbox" data-filter="all"> ALL</label>
+          <label class="chk"><input type="checkbox" data-filter="open" checked> INCOMPLETE</label>
+          <label class="chk"><input type="checkbox" data-filter="filed"> COMPLETED</label>
+          <label>A-Z-1 :</label>
+          <select id="az">
+            <option value=""></option>
+            {% for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}<option>{{ l }}</option>{% endfor %}
+            <option value="1">1</option>
+          </select>
+          <label>State :</label>
+          <select id="stateFilter">
+            <option value=""></option>
+            {% for s in states %}<option>{{ s }}</option>{% endfor %}
+          </select>
+          <span class="totals">Total : <b>{{ client_count }}</b> &nbsp; Incomplete : <b>{{ open_count }}</b> &nbsp; Complete : <b>{{ filed_count }}</b></span>
+        </div>
+      </div>
+
+      <div class="st-wrap">
+      <table id="grid">
+        <thead>
+          <tr>
+            <th class="f1" title="Lock">&#128274;</th>
+            <th class="f2">Client Name</th>
+            <th class="fedid">Federal ID</th>
+            <th class="stid">State ID</th>
+            <th class="county">County</th>
+            <th class="o">&quot;O&quot;</th>
+            <th class="r sales">Total Sales</th>
+            <th class="r exempt">Exempt</th>
+            <th class="r mealtax">Meal Tax</th>
+            <th class="source">Source</th>
+            <th class="r strate">ST Rate</th>
+            <th class="r stamt">State Amt</th>
+            <th class="r cortate">County Rt</th>
+            <th class="r coramt">County Amt</th>
+            <th class="r cityrate">City Rate</th>
+            <th class="r cityamt">City Amt</th>
+            <th class="r spclrate">SPCL Rt</th>
+            <th class="r spclamt">Special Amt</th>
+            <th class="r mtamt">MT Amt</th>
+            <th class="r totpay" title="Total Payable">TotalPayabl</th>
+            <th class="paymode">Pay Mode</th>
+            <th class="routing">Routing #</th>
+            <th class="acct" title="Bank Account #">Bank Acct #</th>
+            <th class="subdate">Submit Date</th>
+            <th class="complete">Complete</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          {% for r in rows %}
+          <tr data-status="{% if r.filed %}filed{% else %}open{% endif %}" data-name="{{ r.name }}" data-state="{{ r.state }}" data-rates='{{ r.rates_json }}'>
+            <td class="f1"><input type="checkbox" class="chk-cell" {% if r.filed %}checked{% endif %}></td>
+            <td class="f2 client" title="{{ r.name }}">{{ r.name }}</td>
+            <td class="fedid">{{ r.fed_id }}</td>
+            <td class="stid">{{ r.state_id }}</td>
+            <td class="county">{{ r.county }}</td>
+            <td class="o"><input type="checkbox" class="chk-cell"></td>
+            <td class="r sales"><input class="entry s" name="sales" value="{{ r.sales }}"
+              hx-post="{{ r.save_url }}" hx-trigger="change" hx-swap="none" hx-include="closest tr"></td>
+            <td class="r exempt"><input class="entry e" name="exempt" value="{{ r.exempt }}"
+              hx-post="{{ r.save_url }}" hx-trigger="change" hx-swap="none" hx-include="closest tr"></td>
+            <td class="r mealtax"><input class="entry m" name="meal_tax" value="{{ r.meal_amt }}"
+              hx-post="{{ r.save_url }}" hx-trigger="change" hx-swap="none" hx-include="closest tr"></td>
+            <td class="source"><select class="src" disabled><option>CP</option></select></td>
+            <td class="r strate">{{ r.state_rate }}</td>
+            <td class="r stamt amt-state">{{ r.amt_state }}</td>
+            <td class="r cortate">{{ r.county_rate }}</td>
+            <td class="r coramt amt-county">{{ r.amt_county }}</td>
+            <td class="r cityrate">{{ r.city_rate }}</td>
+            <td class="r cityamt amt-city">{{ r.amt_city }}</td>
+            <td class="r spclrate">{{ r.special_rate }}</td>
+            <td class="r spclamt amt-special">{{ r.amt_special }}</td>
+            <td class="r mtamt amt-meal">{{ r.meal_amt }}</td>
+            <td class="r totpay amt-total">{{ r.payable }}</td>
+            <td class="paymode">
+              <select class="mode" name="pay_mode"
+                hx-post="{{ r.save_url }}" hx-trigger="change" hx-swap="none" hx-include="closest tr">
+                <option value=""{% if not r.mode %} selected{% endif %}></option>
+                <option value="ACH"{% if r.mode == "ACH" %} selected{% endif %}>ACH</option>
+                <option value="Check"{% if r.mode == "Check" %} selected{% endif %}>Check</option>
+              </select>
+            </td>
+            <td class="routing">{% include "partials/protected_value.html" with field_id=r.routing_field_id masked=r.routing_masked reveal_url=r.routing_reveal_url bare=True %}</td>
+            <td class="acct">{% include "partials/protected_value.html" with field_id=r.account_field_id masked=r.account_masked reveal_url=r.account_reveal_url bare=True %}</td>
+            <td class="subdate">{{ r.submit_date }}</td>
+            <td class="complete">{{ r.filed|yesno:"True,False" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <span style="font-size:var(--fs-sm);color:var(--muted)">Period locked for {{ filed_count }} filed rows</span>
+      <span class="spacer"></span>
+      <span style="font-size:var(--fs-sm);color:var(--muted)">Tab moves across &middot; Enter jumps to the next open row &middot; changes save automatically</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const dialog = document.querySelector('.st-dialog');
+  const titlebar = dialog.querySelector('.modal-titlebar');
+  let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+  titlebar.addEventListener('mousedown', (e) => {
+    if(e.target.closest('.st-close')) return;
+    const rect = dialog.getBoundingClientRect();
+    dialog.style.transform = 'none';
+    dialog.style.margin = '0';
+    dialog.style.left = rect.left + 'px';
+    dialog.style.top = rect.top + 'px';
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+    dragging = true;
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if(!dragging) return;
+    dialog.style.left = (startLeft + e.clientX - startX) + 'px';
+    dialog.style.top = (startTop + e.clientY - startY) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if(!dragging) return;
+    dragging = false;
+    document.body.style.userSelect = '';
+  });
+
+  // No dark backdrop, no click-outside-to-close — this floats over a fully
+  // interactive console. Clicking the console brings it to front and sends
+  // this window behind, and vice versa, like overlapping desktop windows.
+  const appFrame = document.querySelector('.app-frame');
+  appFrame.style.position = 'relative';
+  if(!appFrame.style.zIndex) appFrame.style.zIndex = '1';
+  dialog.style.zIndex = '2';
+
+  function onDocMouseDown(e){
+    if(!document.body.contains(dialog)){
+      document.removeEventListener('mousedown', onDocMouseDown);
+      return;
+    }
+    if(dialog.contains(e.target)){
+      dialog.style.zIndex = '2';
+      appFrame.style.zIndex = '1';
+    } else if(appFrame.contains(e.target)){
+      appFrame.style.zIndex = '2';
+      dialog.style.zIndex = '1';
+    }
+  }
+  document.addEventListener('mousedown', onDocMouseDown);
+
+  const rows = () => [...document.querySelectorAll('#rows tr')];
+  const filterChecks = [...document.querySelectorAll('.st-row3 .chk input')];
+  const az = document.getElementById('az');
+  const stateFilter = document.getElementById('stateFilter');
+  const find = document.getElementById('find');
+
+  function applyFilters(){
+    const statusFilter = (filterChecks.find(c => c.checked) || {}).dataset.filter || 'open';
+    const letter = az.value;
+    const state = stateFilter.value;
+    const q = find.value.trim().toUpperCase();
+    rows().forEach(tr => {
+      const name = tr.dataset.name.toUpperCase();
+      let show = true;
+      if(statusFilter !== 'all' && tr.dataset.status !== statusFilter) show = false;
+      if(letter){
+        const first = name.trim().charAt(0);
+        const isDigit = first >= '0' && first <= '9';
+        if(letter === '1' ? !isDigit : first !== letter) show = false;
+      }
+      if(state && tr.dataset.state !== state) show = false;
+      if(q && !name.includes(q)) show = false;
+      tr.hidden = !show;
+    });
+  }
+
+  filterChecks.forEach(c => c.addEventListener('change', () => {
+    if(c.checked) filterChecks.forEach(other => { if(other !== c) other.checked = false; });
+    else if(!filterChecks.some(x => x.checked)) c.checked = true;
+    applyFilters();
+  }));
+  az.addEventListener('change', applyFilters);
+  stateFilter.addEventListener('change', applyFilters);
+  find.addEventListener('input', applyFilters);
+  applyFilters();
+
+  const m = n => n.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+
+  document.querySelectorAll('td input.s, td input.e').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const row = inp.closest('tr');
+      const rates = JSON.parse(row.dataset.rates || 'null');
+      const s = parseFloat(row.querySelector('.s').value.replace(/,/g, '')) || 0;
+      const e = parseFloat(row.querySelector('.e').value.replace(/,/g, '')) || 0;
+      const taxable = s - e;
+      row.querySelector('.amt-state').textContent = m(taxable * rates.st);
+      row.querySelector('.amt-county').textContent = m(taxable * rates.co);
+      row.querySelector('.amt-city').textContent = m(taxable * rates.ci);
+      row.querySelector('.amt-special').textContent = m(taxable * rates.sp);
+      const total = taxable * rates.st + taxable * rates.co + taxable * rates.ci + taxable * rates.sp;
+      row.querySelector('.amt-total').textContent = m(total);
+    });
+    inp.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        const visible = rows().filter(r => !r.hidden);
+        const next = visible[visible.indexOf(inp.closest('tr')) + 1];
+        if(next) next.querySelector('input.s').focus();
+      }
+    });
+  });
+})();
+</script>
