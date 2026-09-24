@@ -646,7 +646,8 @@ span.link-inline{text-decoration:underline}
           <h3 style="margin-top:20px">Data generation</h3>
           <button class="action" type="button">Generate bank statement log</button>
           <h3 style="margin-top:20px">Collaboration / exports</h3>
-          <button class="action" type="button">Create monthly fees ACH data file</button>
+          <a class="action" href="{% url 'ach_monthly_fees' %}"
+             hx-get="{% url 'ach_monthly_fees' %}" hx-target="#modal-root" hx-swap="innerHTML">Create monthly fees ACH data file</a>
         </div>
         <div>
           <h3>Reporting</h3>

@@ -15,7 +15,18 @@ they are resolved.
       grid, so almost certainly yes.) Determines the vault migration path.
 - [ ] **What format does Import Bank Transactions accept** — bank CSV, OFX/QFX,
       or something clients email in?
-- [ ] **Current ACH file format** — get a real sample, redacted.
+- [ ] **Current ACH file format** — get a real sample, redacted. A first cut
+      of the monthly-fees review/export list exists (`apps/ach`, matching
+      `public/21.webp`'s 6 plain columns: routing #, account #, company name
+      capped at 22 chars, literal `"C"`, fee in cents, client ref) but this
+      is **not** the fixed-width NACHA file `docs/ach.md` describes — treat
+      it as a pre-file worksheet until the real format is confirmed. Two
+      specific gaps: (1) `Client.monthly_fee` is a new flat field seeded with
+      fabricated demo values — confirm it maps to a real legacy column
+      rather than a per-service Billing record; (2) the id string's trailing
+      number uses `Client.id` (our own PK) in place of whatever the legacy
+      file actually encoded there (likely the Access AutoNumber) — confirmed
+      as a placeholder by the user, not verified against a real file.
 
 ## Infrastructure
 

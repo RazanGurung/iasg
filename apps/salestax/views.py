@@ -3,6 +3,7 @@ import json
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -36,6 +37,12 @@ def _dec(value):
         return Decimal(value or "0")
     except InvalidOperation:
         return Decimal("0")
+
+
+def _months_back(year, month, n):
+    """(year, month) shifted back n calendar months."""
+    zero_based = (month - 1) - n
+    return year + zero_based // 12, zero_based % 12 + 1
 
 
 @login_required
@@ -84,6 +91,7 @@ def batch(request):
             "account_masked": f"••••{client.account_number[-4:]}" if client.account_number else "—",
             "account_reveal_url": reverse("security_reveal", args=[f"salestax-{e.id}-account"]),
             "save_url": reverse("salestax_entry_save", args=[e.id]),
+            "details_url": reverse("salestax_entry_details", args=[e.id]),
             "rates_json": json.dumps({
                 "st": float(state_rate), "co": float(county_rate),
                 "ci": float(city_rate), "sp": float(special_rate),
@@ -119,3 +127,48 @@ def entry_save(request, entry_id):
             entry.submit_date = f"{today.day} {today.strftime('%b %Y')}"
         entry.save()
     return redirect(f"{reverse('salestax_batch')}?year={entry.year}&month={entry.month}")
+
+
+@login_required
+def entry_details(request, entry_id):
+    """Taxable Sales Details popup — public/20.webp. Current period plus the
+    two prior calendar months, read-only. Food tax isn't modeled yet
+    (SalesTaxEntry has no such field) so that row always shows $0.00 —
+    matches the one legacy screenshot we have, but is an open question, not
+    a confirmed absence of the behaviour."""
+    entry = get_object_or_404(SalesTaxEntry.objects.select_related("client"), pk=entry_id)
+    client = entry.client
+    rate = (_dec(client.state_rate) + _dec(client.county_rate)
+            + _dec(client.city_rate) + _dec(client.special_rate))
+
+    periods = [(entry.year, entry.month)]
+    for n in (1, 2):
+        periods.append(_months_back(entry.year, entry.month, n))
+
+    period_filter = Q()
+    for y, mo in periods:
+        period_filter |= Q(year=y, month=mo)
+    by_period = {
+        (e.year, e.month): e
+        for e in SalesTaxEntry.objects.filter(period_filter, client=client)
+    }
+
+    columns = []
+    for i, (y, mo) in enumerate(periods):
+        period_entry = by_period.get((y, mo))
+        sales = _dec(period_entry.total_sales) if period_entry else Decimal("0")
+        exempt = _dec(period_entry.exempt) if period_entry else Decimal("0")
+        food_tax = Decimal("0")
+        final_taxable = sales - exempt - food_tax
+        tax_paid = _money(final_taxable * rate)
+        columns.append({
+            "label": f"{_MONTH_NAMES[mo]} {y}",
+            "current": i == 0,
+            "sales": _fmt(sales), "exempt": _fmt(exempt), "food_tax": _fmt(food_tax),
+            "final_taxable": _fmt(final_taxable), "tax_paid": _fmt(tax_paid),
+        })
+
+    return render(request, "salestax/entry_details.html", {
+        "client_name": client.name,
+        "columns": columns,
+    })

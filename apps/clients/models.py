@@ -34,6 +34,13 @@ class Client(models.Model):
     routing_number = models.CharField(max_length=30, blank=True)
     account_number = models.CharField(max_length=30, blank=True)
 
+    # The firm's own monthly service fee, debited via apps.ach — distinct
+    # from sales tax remitted on the client's behalf. legacy-app.md's Client
+    # Addition Form has a "fees" field on the same single-column form; no
+    # separate Billing model exists yet (see that doc's "billing: category,
+    # notes, amount..." section), so this is a flat per-client amount for now.
+    monthly_fee = models.CharField(max_length=10, default="0", blank=True)
+
     # Sales-tax jurisdiction rates used by apps.salestax when computing a
     # period's amounts for this client.
     state_rate = models.CharField(max_length=10, default="0")

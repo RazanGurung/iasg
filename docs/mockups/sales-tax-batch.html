@@ -125,6 +125,47 @@ tfoot td.f1,tfoot td.f2{z-index:2}
 .status{height:28px;flex:none;display:flex;align-items:center;gap:18px;padding:0 20px;
   font-size:var(--fs-sm);color:var(--muted);background:var(--page)}
 .status .spacer{flex:1}
+
+/* ---------- taxable sales details modal ---------- */
+/* legacy popup opened by double-clicking a row's Total sales cell — see
+   public/20.webp. Read-only: a history lookup, not an entry form. */
+.modal-backdrop{position:fixed;inset:0;background:rgba(20,24,29,.45);z-index:10;
+  display:flex;align-items:center;justify-content:center}
+.modal-backdrop[hidden]{display:none}
+.tsd{width:560px;background:var(--surface);border:1px solid var(--line-firm);
+  box-shadow:0 8px 28px rgba(20,24,29,.28)}
+.tsd .bar{height:26px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:#eceef1;border-bottom:1px solid var(--line-firm);
+  font-size:var(--fs-sm);font-weight:600;color:var(--ink)}
+.tsd .body{padding:16px 20px 18px}
+.tsd .clientrow{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.tsd .clientrow label{font-size:var(--fs-sm);color:var(--muted);white-space:nowrap}
+.tsd .clientrow .box{flex:1;height:24px;line-height:24px;padding:0 8px;
+  border:1px solid var(--line-firm);background:var(--surface);font-weight:600}
+.tsd table{width:100%;border-collapse:collapse}
+.tsd col.lbl{width:38%}
+.tsd th{font-size:var(--fs-sm);font-weight:700;text-align:right;padding:2px 4px 8px;
+  font-variant-numeric:tabular-nums}
+.tsd th:first-child{text-align:left}
+.tsd th.cur{color:var(--ok)}
+.tsd th.hist{color:var(--late)}
+.tsd td{padding:3px 4px;font-variant-numeric:tabular-nums}
+.tsd td.lbl{font-size:var(--fs-sm);color:var(--ink)}
+.tsd td.v{text-align:right}
+.tsd td.v .box{display:inline-block;width:100%;min-width:92px;height:22px;line-height:22px;
+  padding:0 6px;border:1px solid var(--line);text-align:right}
+.tsd tr.cur td.v .box{color:var(--ok)}
+.tsd tr.hist td.v .box{color:var(--late)}
+.tsd tr.final td.lbl{font-style:italic;font-weight:600}
+.tsd tr.final td.v .box{font-weight:700;border-top:2px solid var(--ink)}
+.tsd tr.gap td{height:10px;padding:0;border:0}
+.tsd tr.paid td.lbl{font-weight:700;letter-spacing:.2px}
+.tsd tr.paid td.v .box{font-weight:700;border:0}
+.tsd .foot{display:flex;justify-content:flex-end;padding-top:10px}
+.tsd .exit{width:26px;height:26px;border-radius:50%;border:0;background:var(--accent);
+  color:#fff;cursor:pointer;font-size:14px;line-height:1;display:flex;
+  align-items:center;justify-content:center}
+.tsd .exit:hover{background:#0f3f66}
 </style>
 </head>
 <body>
@@ -225,6 +266,28 @@ tfoot td.f1,tfoot td.f2{z-index:2}
   <span>Tab moves across &nbsp;·&nbsp; Enter files the row and jumps to the next open one &nbsp;·&nbsp; Ctrl+S saves</span>
 </div>
 
+<div class="modal-backdrop" id="tsdBackdrop" hidden>
+  <div class="tsd" role="dialog" aria-modal="true" aria-labelledby="tsdTitle">
+    <div class="bar" id="tsdTitle">[IASG MIS] - [Taxable Sales Details]</div>
+    <div class="body">
+      <div class="clientrow">
+        <label>Client Name :</label>
+        <span class="box" id="tsdClient"></span>
+      </div>
+      <table>
+        <colgroup><col class="lbl"><col><col><col></colgroup>
+        <thead>
+          <tr id="tsdHead"></tr>
+        </thead>
+        <tbody id="tsdBody"></tbody>
+      </table>
+      <div class="foot">
+        <button class="exit" id="tsdExit" title="Close" aria-label="Close">&#8617;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* fabricated: county, city, special, state rates per client */
 const R=[
@@ -266,7 +329,7 @@ function build(){
     tr.innerHTML=
       `<td class="f1"><input type="checkbox" ${has?'checked':''} style="width:auto"></td>`+
       `<td class="f2"><span class="client">${name}</span><br><span class="sub">${loc}</span></td>`+
-      `<td class="r grpstart"><input class="s ${has?'filled':''}" data-i="${i}" value="${has?m(sales):''}" placeholder="0.00"></td>`+
+      `<td class="r grpstart salescell"><input class="s ${has?'filled':''}" data-i="${i}" value="${has?m(sales):''}" placeholder="0.00"></td>`+
       `<td class="r"><input class="e ${has?'filled':''}" data-i="${i}" value="${has?m(exempt):''}" placeholder="0.00"></td>`+
       `<td class="r"><input class="m ${has?'filled':''}" data-i="${i}" value="${has?'0.00':''}" placeholder="0.00"></td>`+
       `<td class="r calc grpstart rate">${pc(st)}</td><td class="r calc">${has?m(a(st)):'—'}</td>`+
@@ -297,6 +360,68 @@ function totals(){
   set('t-state',ts);set('t-county',tc);set('t-city',tci);set('t-spcl',tsp);
   set('t-mt',0);set('t-total',tt);
 }
+
+/* ---------- taxable sales details modal ---------- */
+const MONTHS=["August 2026","July 2026","June 2026"];   // current period + 2 prior, matches .top .period
+const backdrop=document.getElementById('tsdBackdrop');
+
+// delegated on tbody (not the input) so the whole cell is a hit target, not
+// just the ~23px input inside the 29px row
+tbody.addEventListener('dblclick',e=>{
+  const cell=e.target.closest('td.salescell');
+  if(!cell)return;
+  openTaxableSales(+cell.querySelector('input.s').dataset.i);
+});
+
+function openTaxableSales(i){
+  const [name,,st,co,ci,sp,,baseSales,baseExempt]=R[i];
+  const row=tbody.querySelectorAll('tr')[i];
+  const curSales=parseFloat(row.querySelector('.s').value.replace(/,/g,''))||0;
+  const curExempt=parseFloat(row.querySelector('.e').value.replace(/,/g,''))||0;
+  const rate=st+co+ci+sp;
+
+  // fabricated history for the two prior (already-filed) periods
+  const periods=[
+    {cls:'cur', sales:curSales, exempt:curExempt},
+    {cls:'hist', sales:baseSales*0.94, exempt:baseExempt*0.90},
+    {cls:'hist', sales:baseSales*0.98, exempt:baseExempt*0.94},
+  ];
+
+  document.getElementById('tsdClient').textContent=name;
+
+  const head=document.getElementById('tsdHead');
+  head.innerHTML='<th></th>'+MONTHS.map((mo,k)=>
+    `<th class="${periods[k].cls==='cur'?'cur':'hist'}">${mo}</th>`).join('');
+
+  const rows=periods.map(p=>{
+    const foodTax=0;
+    const finalTaxable=p.sales-p.exempt-foodTax;
+    const taxPaid=finalTaxable*rate;
+    return {...p, foodTax, finalTaxable, taxPaid};
+  });
+
+  const body=document.getElementById('tsdBody');
+  const trHTML=(label,key,cls)=>
+    `<tr class="${cls||''}"><td class="lbl">${label}</td>`+
+    rows.map(r=>`<td class="v ${r.cls}"><span class="box">$${m(r[key])}</span></td>`).join('')+
+    `</tr>`;
+  body.innerHTML=
+    trHTML('Total Sales :','sales')+
+    trHTML('LESS: Exempt Sales','exempt')+
+    trHTML('LESS: 2% Food Tax','foodTax')+
+    `<tr class="gap"><td></td><td></td><td></td><td></td></tr>`+
+    trHTML('Final Taxable Sales','finalTaxable','final')+
+    `<tr class="gap"><td></td><td></td><td></td><td></td></tr>`+
+    trHTML('SALES TAX PAID :','taxPaid','paid');
+
+  backdrop.hidden=false;
+  document.getElementById('tsdExit').focus();
+}
+
+function closeTaxableSales(){backdrop.hidden=true}
+document.getElementById('tsdExit').onclick=closeTaxableSales;
+backdrop.addEventListener('click',e=>{if(e.target===backdrop)closeTaxableSales()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!backdrop.hidden)closeTaxableSales()});
 
 function wire(){
   document.querySelectorAll('.prot').forEach(p=>{

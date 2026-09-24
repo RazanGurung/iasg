@@ -225,6 +225,7 @@ change; "Source" stays a fixed "CP" placeholder, nothing behind it yet.
             <td class="county">{{ r.county }}</td>
             <td class="o"><input type="checkbox" class="chk-cell"></td>
             <td class="r sales"><input class="entry s" name="sales" value="{{ r.sales }}"
+              data-details-url="{{ r.details_url }}"
               hx-post="{{ r.save_url }}" hx-trigger="change" hx-swap="none" hx-include="closest tr"></td>
             <td class="r exempt"><input class="entry e" name="exempt" value="{{ r.exempt }}"
               hx-post="{{ r.save_url }}" hx-trigger="change" hx-swap="none" hx-include="closest tr"></td>
@@ -258,6 +259,7 @@ change; "Source" stays a fixed "CP" placeholder, nothing behind it yet.
         </tbody>
       </table>
       </div>
+      <div id="tsd-root"></div>
     </div>
 
     <div class="modal-foot">
@@ -383,6 +385,15 @@ change; "Source" stays a fixed "CP" placeholder, nothing behind it yet.
         const next = visible[visible.indexOf(inp.closest('tr')) + 1];
         if(next) next.querySelector('input.s').focus();
       }
+    });
+  });
+
+  // Taxable Sales Details popup (public/20.webp) — not an htmx hx-get on
+  // this input directly, since it already carries hx-post/hx-trigger=change
+  // for autosave and htmx only supports one request definition per element.
+  document.querySelectorAll('td.sales input.s').forEach(inp => {
+    inp.addEventListener('dblclick', () => {
+      htmx.ajax('GET', inp.dataset.detailsUrl, {target: '#tsd-root', swap: 'innerHTML'});
     });
   });
 })();

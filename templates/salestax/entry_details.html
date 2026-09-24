@@ -1,0 +1,106 @@
+{% comment %}
+Taxable Sales Details — public/20.webp. Opened by double-clicking a row's
+Total Sales figure in the sales tax batch grid (templates/salestax/batch.html);
+swaps into #tsd-root, which lives inside that grid's own dialog so this floats
+on top of it rather than replacing it (a second, nested MDI child window).
+
+Read-only: current period plus the two prior calendar months. Reuses the
+app's .modal-dialog/.modal-titlebar/.modal-body chrome but is positioned and
+stacked independently (fixed + high z-index) since it has no backdrop of its
+own, same as the batch grid it sits over.
+
+Food tax isn't modeled yet (SalesTaxEntry has no such field) — that row
+always shows $0.00. Matches the one legacy screenshot on file, but is an
+open question (docs/open-questions.md), not a confirmed absence of the
+behaviour.
+{% endcomment %}
+<div class="modal-dialog tsd-dialog" role="dialog" aria-modal="false" aria-labelledby="tsd-title">
+  <style>
+    .tsd-dialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      z-index:50;width:520px}
+    .tsd-dialog .modal-body{padding:16px 20px 18px}
+    .tsd-close{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+      width:18px;height:18px;border-radius:0;border:0;background:transparent;
+      color:var(--ink);font-size:13px;line-height:1;cursor:pointer;display:inline-flex;
+      align-items:center;justify-content:center}
+    .tsd-close:hover{color:var(--danger)}
+    .tsd-client{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+    .tsd-client label{font-size:var(--fs-sm);color:var(--muted);white-space:nowrap}
+    .tsd-client .box{flex:1;font-weight:600}
+    .tsd-table{width:100%;border-collapse:collapse}
+    .tsd-table col.lbl{width:36%}
+    .tsd-table th{font-size:var(--fs-sm);font-weight:700;text-align:right;
+      padding:2px 4px 8px;font-variant-numeric:tabular-nums}
+    .tsd-table th:first-child{text-align:left}
+    .tsd-table th.current{color:var(--ok)}
+    .tsd-table th.prior{color:var(--danger)}
+    .tsd-table td{padding:3px 4px;font-variant-numeric:tabular-nums}
+    .tsd-table td.lbl{font-size:var(--fs-sm);color:var(--ink)}
+    .tsd-table td.v .box{display:block;text-align:right;min-width:88px;
+      height:22px;line-height:22px;padding:0 6px;border:1px solid var(--line)}
+    .tsd-table tr.current td.v .box{color:var(--ok)}
+    .tsd-table tr.prior td.v .box{color:var(--danger)}
+    .tsd-table tr.final td.lbl{font-style:italic;font-weight:600}
+    .tsd-table tr.final td.v .box{font-weight:700;border-top:2px solid var(--ink)}
+    .tsd-table tr.gap td{height:10px;padding:0;border:0}
+    .tsd-table tr.paid td.lbl{font-weight:700;letter-spacing:.2px}
+    .tsd-table tr.paid td.v .box{font-weight:700;border:0}
+    .tsd-foot{display:flex;justify-content:flex-end;padding-top:10px}
+    .tsd-exit{width:26px;height:26px;border-radius:50%;border:0;
+      background:var(--accent);color:#fff;cursor:pointer;font-size:14px;
+      line-height:1;display:flex;align-items:center;justify-content:center}
+    .tsd-exit:hover{background:#204880}
+  </style>
+
+  <div class="modal-titlebar" id="tsd-title">
+    [IASG MIS] - [Taxable Sales Details]
+    <button type="button" class="tsd-close" title="Close"
+      onclick="document.getElementById('tsd-root').innerHTML=''">&#10005;</button>
+  </div>
+
+  <div class="modal-body">
+    <div class="tsd-client">
+      <label>Client Name :</label>
+      <span class="box">{{ client_name }}</span>
+    </div>
+
+    <table class="tsd-table">
+      <colgroup><col class="lbl"><col><col><col></colgroup>
+      <thead>
+        <tr>
+          <th></th>
+          {% for c in columns %}<th class="{% if c.current %}current{% else %}prior{% endif %}">{{ c.label }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lbl">Total Sales :</td>
+          {% for c in columns %}<td class="v {% if c.current %}current{% else %}prior{% endif %}"><span class="box">${{ c.sales }}</span></td>{% endfor %}
+        </tr>
+        <tr>
+          <td class="lbl">LESS: Exempt Sales</td>
+          {% for c in columns %}<td class="v {% if c.current %}current{% else %}prior{% endif %}"><span class="box">${{ c.exempt }}</span></td>{% endfor %}
+        </tr>
+        <tr>
+          <td class="lbl">LESS: 2% Food Tax</td>
+          {% for c in columns %}<td class="v {% if c.current %}current{% else %}prior{% endif %}"><span class="box">${{ c.food_tax }}</span></td>{% endfor %}
+        </tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td></tr>
+        <tr class="final">
+          <td class="lbl">Final Taxable Sales</td>
+          {% for c in columns %}<td class="v {% if c.current %}current{% else %}prior{% endif %}"><span class="box">${{ c.final_taxable }}</span></td>{% endfor %}
+        </tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td></tr>
+        <tr class="paid">
+          <td class="lbl">SALES TAX PAID :</td>
+          {% for c in columns %}<td class="v {% if c.current %}current{% else %}prior{% endif %}"><span class="box">${{ c.tax_paid }}</span></td>{% endfor %}
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tsd-foot">
+      <button type="button" class="tsd-exit" title="Close"
+        onclick="document.getElementById('tsd-root').innerHTML=''">&#8617;</button>
+    </div>
+  </div>
+</div>

@@ -46,8 +46,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self._create_tables()
+        self._add_new_columns()
         self._seed_users()
         self._seed_clients()
+        self._seed_fees()
         self.stdout.write(self.style.SUCCESS("bootstrap_dev complete."))
 
     def _create_tables(self):
@@ -57,6 +59,19 @@ class Command(BaseCommand):
                 if model._meta.db_table not in existing:
                     editor.create_model(model)
                     self.stdout.write(f"created table {model._meta.db_table}")
+
+    def _add_new_columns(self):
+        # Fields added to an already-bootstrapped dev DB after the fact.
+        # create_model() above only fires for a table that doesn't exist yet,
+        # so a field added later needs its own idempotent add_field() here.
+        if Client._meta.db_table not in connection.introspection.table_names():
+            return
+        with connection.cursor() as cursor:
+            columns = {c.name for c in connection.introspection.get_table_description(cursor, Client._meta.db_table)}
+        if "monthly_fee" not in columns:
+            with connection.schema_editor() as editor:
+                editor.add_field(Client, Client._meta.get_field("monthly_fee"))
+            self.stdout.write("added column clients_client.monthly_fee")
 
     def _seed_users(self):
         User = get_user_model()
@@ -198,3 +213,13 @@ class Command(BaseCommand):
             due_date="05 Sep 2026", completed=True,
         )
         self.stdout.write(f"seeded {Client.objects.count()} clients")
+
+    def _seed_fees(self):
+        # Fabricated flat monthly fee: base bookkeeping rate plus a bump per
+        # extra service on file. Only backfills clients still at the field
+        # default so re-running this command never clobbers an edited fee.
+        for client in Client.objects.filter(monthly_fee="0"):
+            fee = 35 + (15 if client.payroll else 0) + (10 if client.cig_tob else 0)
+            client.monthly_fee = f"{fee}.00"
+            client.save(update_fields=["monthly_fee"])
+        self.stdout.write("seeded monthly_fee for clients at the default")
